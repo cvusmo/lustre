@@ -4,7 +4,6 @@
 use crate::modules::engine::configuration::logger::{log_debug, log_info, AppState};
 use crate::modules::engine::configuration::config::Config;
 use crate::modules::engine::gui::menu_bar::create_menu_bar;
-use glib::ControlFlow::Continue;
 use gtk4 as gtk;
 use gtk::{ gdk::Display, prelude::*, Application, 
     ApplicationWindow, CssProvider, Grid, Label};
@@ -29,26 +28,34 @@ pub fn build_ui(
     // Create the main layout
     let grid = create_grid();
     window.set_child(Some(&grid));
-
-    let menu_bar = create_menu_bar(state);
-    grid.attach(&menu_bar, 0, 0, 1, 1);
     
-    // Create a section for main content 
-    let content_area = create_content_area();
-    grid.attach(&content_area, 0, 2, 2, 1); // Main content area
+    // Create project area
+    let project_area = create_project_area();
+    project_area.add_css_class("project-area");
+    grid.attach(&project_area, 0, 1, 2, 1); 
+    
+    // Create menu bar
+    let menu_bar = create_menu_bar(state);
+    menu_bar.add_css_class("menu-bar");
+    grid.attach(&menu_bar, 0, 0, 2, 1);
     
     log_info(state, "Window built successfully.");
     window
 }
 
 // Create content area
-fn create_content_area() -> gtk::Box {
-    let content_area = gtk::Box::new(gtk::Orientation::Vertical, 5);
-    // TODO: add content elements here (drawing area, buttons, etc.)
-    let label = Label::new(Some("Main Content Area"));
-    content_area.append(&label);
-    content_area
+fn create_project_area() -> gtk::Box {
+    let project_area = gtk::Box::new(gtk::Orientation::Vertical, 5);
+    project_area.set_vexpand(true);
+    project_area.set_hexpand(true);
+
+    let label = Label::new(Some("Project Area"));
+    project_area.append(&label);
+    project_area
 }
+
+// Update project area
+// TODO: creat function
 
 // Loads theme configuration 
 fn load_theme(config: &Config, state: &Arc<Mutex<AppState>>) -> (String, String, f32) {
@@ -77,6 +84,19 @@ fn load_configuration_path(state: &Arc<Mutex<AppState>>) -> PathBuf {
 fn generate_css(font_color: &str, font_size: f32, background_color: &str) -> String {
     format!(
         "
+        .menu-bar {{
+            background-color: #44484e;
+        }}
+        .menu-button {{
+            background-color: #2C2F33;
+            color: #FFFFFF;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+        }}
+        .menu-button:hover {{
+            background-color: #444;
+        }}
         .clock {{
             color: {};
             font-size: {}px;
@@ -86,6 +106,12 @@ fn generate_css(font_color: &str, font_size: f32, background_color: &str) -> Str
         }}
         .window {{
             background-color: {};
+        }}
+        .menu-bar {{
+            background-color: #000000;
+        }}
+        .project-area {{
+            background-color: #333333; /* Charcoal gray */
         }}
         ",
         font_color, font_size, background_color
@@ -116,14 +142,6 @@ fn create_window(app: &Application) -> ApplicationWindow {
         .build()
 }
 
-// Creates the clock label 
-fn create_clock_label() -> Label {
-    Label::builder()
-        .label(get_current_time())
-        .css_classes(vec!["clock".to_string()])
-        .build()
-}
-
 // Creates a grid layout
 fn create_grid() -> Grid {
     let grid = Grid::builder()
@@ -131,25 +149,13 @@ fn create_grid() -> Grid {
         .column_spacing(10)
         .build();
 
-    grid.set_halign(gtk::Align::Start); 
-    grid.set_valign(gtk::Align::Start); 
+    // set grid to expand
+    grid.set_vexpand(true);
+    grid.set_hexpand(true);
+
+    // grid alignment
+    grid.set_halign(gtk::Align::Fill); 
+    grid.set_valign(gtk::Align::Fill); 
 
     grid
-}
-
-// Starts a timer that updates
-fn start_clock_update(clock_label: Arc<Label>) {
-    glib::timeout_add_seconds_local(1, move || {
-        let current_time = get_current_time();
-        clock_label.set_label(&current_time);
-        Continue
-    });
-}
-
-// Returns the current time
-fn get_current_time() -> String {
-    use chrono::{DateTime, Local};
-
-    let now: DateTime<Local> = Local::now();
-    now.format("%H:%M:%S").to_string()
 }

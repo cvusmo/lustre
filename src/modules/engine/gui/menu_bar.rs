@@ -12,11 +12,13 @@ pub fn create_menu_bar(state: &Arc<Mutex<AppState>>) -> GtkBox {
     // Create horizontal menu bar container
     let menu_bar = GtkBox::new(Orientation::Horizontal, 5);
     menu_bar.set_halign(Align::Start);
+    menu_bar.add_css_class("menu-bar");
 
     // File Button
     let file_button = MenuButton::builder()
         .label("File")
         .build();
+    file_button.add_css_class("menu-button");
     let file_popover = Popover::new();
     let file_box = GtkBox::new(Orientation::Vertical, 5);
     file_box.append(&Label::new(Some("New")));
@@ -29,6 +31,7 @@ pub fn create_menu_bar(state: &Arc<Mutex<AppState>>) -> GtkBox {
     let edit_button = MenuButton::builder()
         .label("Edit")
         .build();
+    edit_button.add_css_class("menu-button");
     let edit_popover = Popover::new();
     let edit_box = GtkBox::new(Orientation::Vertical, 5);
     edit_box.append(&Label::new(Some("Undo")));
