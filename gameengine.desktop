@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=gameengine
+Comment=Voxel based game engine
+Exec=/home/echo/projects/gameengine/target/debug/gameengine
+Icon=icon
+Terminal=false
+Type=Application
+Categories=Utility;
