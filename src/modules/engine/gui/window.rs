@@ -1,105 +1,180 @@
-use gtk4::prelude::*;
-use gtk4::DrawingArea;
-use wgpu::Surface;
-use std::rc::Rc;
-use std::cell::RefCell;
+// src/modules/engine/gui/window.rs
+// github.com/cvusmo/gameengine
 
-// Create a struct to handle wgpu state
-struct WgpuContext {
-    instance: wgpu::Instance,
-    surface: Surface,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-    config: wgpu::SurfaceConfiguration,
-}
+use crate::modules::engine::configuration::logger::{log_debug, log_info, AppState};
+use crate::modules::engine::configuration::config::Config;
+use crate::modules::engine::gui::menu_bar::create_menu_bar;
+use crate::modules::engine::render::template;
 
-impl WgpuContext {
-    async fn new(width: i32, height: i32) -> Self {
-        // Create a new instance of WGPU
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::PRIMARY,
-            ..Default::default()
-        });
+use gtk4 as gtk;
+use gtk::{ gdk::Display, prelude::*, Application, 
+    ApplicationWindow, CssProvider, Grid, Label};
+use std::{env, path::{Path, PathBuf}, sync::{Arc, Mutex}};
 
-        // Create a dummy window surface or use another method to create the WGPU surface
+pub fn build_ui(
+    app: &Application,
+    config: &Config,
+    state: &Arc<Mutex<AppState>>,
+) -> Arc<ApplicationWindow> {
+    log_info(state, "Loading config...");
 
-        // Request an adapter for the device
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::HighPerformance,
-                compatible_surface: None, // Add compatible surface if available
-                force_fallback_adapter: false,
-            })
-            .await
-            .expect("Failed to find an appropriate adapter");
+    let (background_color, font_color, font_size) = load_theme(config, state);
+    let _config_path = load_configuration_path(state);
+    let css = generate_css(&font_color, font_size, &background_color);
 
-        // Request a device and queue
-        let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    required_features: wgpu::Features::empty(),
-                    required_limits: wgpu::Limits::default(),
-                    label: None,
-                    memory_hints: wgpu::MemoryHints::default(),
-                },
-                None,
-            )
-            .await
-            .expect("Failed to create device");
+    apply_css(&css, state);
 
-        // Get the surface configuration
-        let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: wgpu::TextureFormat::Bgra8UnormSrgb, // Example format
-            width: width as u32,
-            height: height as u32,
-            present_mode: wgpu::PresentMode::Fifo,
-            alpha_mode: wgpu::CompositeAlphaMode::Opaque,
-            view_formats: vec![],
-            desired_maximum_frame_latency: 2,
-        };
+    log_info(state, "Building UI...");
+    let window = create_window(app);
 
-        // surface.configure(&device, &config); // Configure surface if you have one
+    // Wrap window in Arc
+    let window = Arc::new(window);
 
-        Self {
-            instance,
-            surface: /* Placeholder for your surface */, // Set the surface properly
-            device,
-            queue,
-            config,
-        }
+    // Create the main layout
+    log_info(state, "Hello there, grid...");
+    let grid = create_grid();
+    window.set_child(Some(&grid));
+
+    // Create project area and set it in AppState
+    log_info(state, "Hello there, project area...");
+    let project_area = create_project_area();
+    project_area.add_css_class("project-area");
+    grid.attach(&project_area, 0, 1, 2, 1);
+
+    {
+        let mut state = state.lock().unwrap();
+        state.project_area = Some(project_area.clone());
     }
 
-    fn render(&mut self) {
-        // Placeholder for rendering logic
-        // You would use `self.surface` to get the frame and `self.device` to execute commands
-    }
+    // Create the rendering area and set it in the layout
+    let rendering_area = gtk::DrawingArea::new();
+    rendering_area.set_vexpand(true);
+    rendering_area.set_hexpand(true);
+    rendering_area.set_content_width(800);
+    rendering_area.set_content_height(600);
+    rendering_area.add_css_class("render-area");
+    grid.attach(&rendering_area, 2, 1, 2, 2);
+
+    // Setup WGPU rendering
+    template::setup_wgpu_rendering(&rendering_area);
+
+    // Create menu bar
+    log_info(state, "Hello there, menu bar...");
+    let menu_bar = create_menu_bar(state, &window, app);
+    menu_bar.add_css_class("menu-bar");
+    grid.attach(&menu_bar, 0, 0, 2, 1);
+
+    log_info(state, "Build UI successfully.");
+    window
 }
 
-pub fn setup_wgpu_rendering(drawing_area: &DrawingArea) {
-    // Connect the realize signal for the drawing area
-    drawing_area.connect_realize(move |area| {
-        // Clone drawing_area properties before passing to async function
-        let width = area.allocated_width();
-        let height = area.allocated_height();
-        
-        // Create a reference-counted WGPU context, wrapped in RefCell to allow interior mutability
-        let wgpu_context = Rc::new(RefCell::new(None));
+// Create content area
+fn create_project_area() -> gtk::Box {
+    let project_area = gtk::Box::new(gtk::Orientation::Vertical, 5);
+    project_area.set_vexpand(true);
+    project_area.set_hexpand(true);
 
-        // Create WGPU context asynchronously
-        let context_clone = wgpu_context.clone();
-        glib::MainContext::default().spawn_local(async move {
-            let context = WgpuContext::new(width, height).await;
-            *context_clone.borrow_mut() = Some(context);
-        });
-
-        // Set the draw function for rendering
-        let context_clone = wgpu_context.clone();
-        area.set_draw_func(move |_widget, _context, _width, _height| {
-            if let Some(ref mut context) = *context_clone.borrow_mut() {
-                context.render();
-            }
-        });
-    });
+    let label = Label::new(Some("Project Area"));
+    project_area.append(&label);
+    project_area
 }
 
+// Loads theme configuration 
+fn load_theme(config: &Config, state: &Arc<Mutex<AppState>>) -> (String, String, f32) {
+    let background_color = config.theme.background_color.clone();
+    log_info(state, &format!("Background color: {}", background_color));
+
+    let font_color = config.theme.font_color.clone();
+    log_info(state, &format!("Font color: {}", font_color));
+
+    let font_size = config.theme.font_size as f32;
+    log_info(state, &format!("Font size: {}", font_size));
+
+    (background_color, font_color, font_size)
+}
+
+// Loads the configuration 
+fn load_configuration_path(state: &Arc<Mutex<AppState>>) -> PathBuf {
+    let home_dir = env::var("HOME").unwrap_or_else(|_| String::from("/home/$USER"));
+    let config_file = format!("{}/.config/gameengine/gameengine.conf", home_dir);
+    let config_path = Path::new(&config_file);
+    log_info(state, &format!("Configuration file path: {}", config_path.display()));
+    config_path.to_path_buf() 
+}
+
+// Generates the CSS string 
+fn generate_css(font_color: &str, font_size: f32, background_color: &str) -> String {
+    format!(
+        "
+        .menu-bar {{
+            background-color: #44484e;
+        }}
+        .menu-button {{
+            background-color: #2C2F33;
+            color: #FFFFFF;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+        }}
+        .menu-button:hover {{
+            background-color: #444;
+        }}
+        .clock {{
+            color: {};
+            font-size: {}px;
+        }}
+        .window {{
+            background-color: {};
+        }}
+        .menu-bar {{
+            background-color: #000000;
+        }}
+        .project-area {{
+            background-color: #333333; /* Charcoal gray */
+        }}
+        ",
+        font_color, font_size, background_color
+    )
+}
+
+// Applies the generated CSS to the application.
+fn apply_css(css: &str, state: &Arc<Mutex<AppState>>) {
+    let provider = CssProvider::new();
+    provider.load_from_data(css); 
+    log_debug(state, "CSS loaded successfully.");
+
+    gtk::style_context_add_provider_for_display(
+        &Display::default().unwrap(),
+        &provider,
+        gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+    );
+
+    log_debug(state, &format!("Generated CSS:\n{}", css));
+}
+
+// Creates the main window
+fn create_window(app: &Application) -> ApplicationWindow {
+    ApplicationWindow::builder()
+        .application(app)
+        .title("gameengine")  
+        .css_classes(vec!["window".to_string()])
+        .build()
+}
+
+// Creates a grid layout
+fn create_grid() -> Grid {
+    let grid = Grid::builder()
+        .row_spacing(10)
+        .column_spacing(10)
+        .build();
+
+    // set grid to expand
+    grid.set_vexpand(true);
+    grid.set_hexpand(true);
+
+    // grid alignment
+    grid.set_halign(gtk::Align::Fill); 
+    grid.set_valign(gtk::Align::Fill); 
+
+    grid
+}

@@ -22,7 +22,7 @@ impl<'a> WgpuContext<'a> {
             ..Default::default()
         });
 
-        // Placeholder for creating the WGPU surface
+        // Placeholder for creating WGPU surface
 
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -48,7 +48,7 @@ impl<'a> WgpuContext<'a> {
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: wgpu::TextureFormat::Bgra8UnormSrgb, // Example format
+            format: wgpu::TextureFormat::Bgra8UnormSrgb,
             width: width as u32,
             height: height as u32,
             present_mode: wgpu::PresentMode::Fifo,
@@ -59,7 +59,7 @@ impl<'a> WgpuContext<'a> {
 
         Self {
             instance,
-            surface: None, // Configure this properly later
+            surface: None, 
             device,
             queue,
             config,
@@ -67,7 +67,7 @@ impl<'a> WgpuContext<'a> {
     }
 
     fn render(&mut self) {
-        // Placeholder for rendering logic
+        // Placeholder rendering logic
     }
 }
 
