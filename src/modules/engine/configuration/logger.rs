@@ -16,6 +16,7 @@ pub struct AppState {
     pub project_area: Option<gtk::Box>,
     pub project_path: Option<PathBuf>,
     pub text_view: Option<gtk4::TextView>,
+    pub is_modified: bool,
 }
 
 // Init logger
@@ -93,6 +94,7 @@ pub fn create_state() -> Arc<Mutex<AppState>> {
         project_area: None,
         project_path: None,
         text_view: None,
+        is_modified: false,
     }))
 }
 

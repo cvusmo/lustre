@@ -6,12 +6,13 @@ use crate::modules::engine::gui::new_project::open_new_project_dialog;
 use crate::modules::engine::gui::explorer::file_explorer::open_file;
 use crate::modules::engine::gui::save_file::save_file;
 use crate::modules::engine::gui::saveas_file::save_as_file;
+use crate::modules::engine::gui::utils::handle_exit;
 
 use gtk4::prelude::*;
-use gtk4::{Align, ApplicationWindow, Button, Box as GtkBox, Label, MenuButton, Orientation, Popover};
+use gtk4::{Align, ApplicationWindow, Button, Box as GtkBox, Label, MenuButton, Orientation, Popover, Application};
 use std::sync::{Arc, Mutex};
 
-pub fn create_menu_bar(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWindow>) -> GtkBox {
+pub fn create_menu_bar(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWindow>, app: &Application) -> GtkBox {
     log_info(state, "Creating menu bar...");
 
     // Create horizontal menu bar container
@@ -64,8 +65,15 @@ pub fn create_menu_bar(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWin
         save_as_file(state_clone_save_as.clone(), parent_clone_save_as.clone());
     });
 
-    // TODO: Add Exit with a prompt to check if saved
-    file_box.append(&Label::new(Some("Exit")));
+    // Exit button
+    let exit_button = Button::with_label("Exit");
+    file_box.append(&exit_button);
+    let state_clone_exit = Arc::clone(state);
+    let app_clone = app.clone();
+    exit_button.connect_clicked(move |_| {
+        handle_exit(state_clone_exit.clone(), &app_clone);
+    });
+
     file_popover.set_child(Some(&file_box));
     file_button.set_popover(Some(&file_popover));
     

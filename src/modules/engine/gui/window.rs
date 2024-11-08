@@ -47,7 +47,7 @@ pub fn build_ui(
 
     // Create menu bar
     log_info(state, "Hello there, menu bar...");
-    let menu_bar = create_menu_bar(state, &window);
+    let menu_bar = create_menu_bar(state, &window, app);
     menu_bar.add_css_class("menu-bar");
     grid.attach(&menu_bar, 0, 0, 2, 1);
 
