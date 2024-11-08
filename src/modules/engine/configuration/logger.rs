@@ -92,6 +92,7 @@ pub fn create_state() -> Arc<Mutex<AppState>> {
         log_label,
         project_area: None,
         project_path: None,
+        text_view: None,
     }))
 }
 
