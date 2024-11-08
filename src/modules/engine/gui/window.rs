@@ -45,6 +45,18 @@ pub fn build_ui(
         state.project_area = Some(project_area.clone());
     }
 
+    // Create the rendering area and set it in the layout
+    let rendering_area = gtk::DrawingArea::new();
+    rendering_area.set_vexpand(true);
+    rendering_area.set_hexpand(true);
+    rendering_area.set_content_width(800);
+    rendering_area.set_content_height(600);
+    rendering_area.add_css_class("render-area");
+    grid.attach(&rendering_area, 2, 1, 2, 2);
+
+    // Setup WGPU rendering
+    template::setup_wgpu_rendering(&rendering_area);
+
     // Create menu bar
     log_info(state, "Hello there, menu bar...");
     let menu_bar = create_menu_bar(state, &window, app);

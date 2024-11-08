@@ -10,18 +10,32 @@ use crate::modules::engine::configuration::{
 };
 
 use crate::modules::engine::gui;
+use crate::modules::engine::render;
 
 use crate::debug::debug::enable_debug_mode;
 
 use clap::{Arg, Command};
 use gtk::{glib, prelude::*, Application};
 use gtk4 as gtk;
+use mlua::prelude::*;
 use std::sync::{Arc, Mutex};
 
 const APP_ID: &str = "org.cvusmo.gameengine";
 
 fn main() -> glib::ExitCode {
     let _gtkinit = gtk::init();
+    let lua = Lua::new();
+
+    let add = lua.create_function(|_, (a, b): (i32, i32)| {
+    Ok(a + b)
+})?;
+
+    lua.globals().set("add", add)?;
+
+    lua.load(r#"
+        local result = add(3, 4)
+        print("Result of addition:", result)
+    "#).exec()?;
 
     let matches = Command::new("gameengine")
         .version("0.0.1")
