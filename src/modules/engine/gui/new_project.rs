@@ -2,12 +2,11 @@
 // github.com/cvusmo/gameengine
 
 use gtk4::prelude::*;
-use gtk4::{ApplicationWindow, Button, Dialog, FileChooserAction, FileChooserDialog, ResponseType, Box as GtkBox, Label, Orientation, TextView, ScrolledWindow};
+use gtk4::{ApplicationWindow, Button, Dialog, FileChooserAction, 
+    FileChooserDialog, ResponseType, Box as GtkBox, Label, Orientation, TextView, ScrolledWindow};
 use crate::modules::engine::configuration::logger::{log_info, log_error, AppState};
 use std::sync::{Arc, Mutex};
-use std::env;
-use std::fs;
-use std::path::PathBuf;
+use std::{env, fs, path::PathBuf};
 
 // Function to open the "New Project" dialog
 pub fn open_new_project_dialog(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWindow>) {
@@ -33,10 +32,6 @@ pub fn open_new_project_dialog(state: &Arc<Mutex<AppState>>, parent: &Arc<Applic
     let create_button = Button::with_label("Create New Project");
     dialog_box.append(&create_button);
 
-    // "Select Saved Project" button
-    let open_button = Button::with_label("Select Saved Project");
-    dialog_box.append(&open_button);
-
     // "Create New Project" button action
     {
         let state = Arc::clone(state);
@@ -48,23 +43,11 @@ pub fn open_new_project_dialog(state: &Arc<Mutex<AppState>>, parent: &Arc<Applic
         });
     }
 
-    // "Select Saved Project" button action
-    {
-        let state = Arc::clone(state);
-        let dialog_clone = dialog.clone();
-        open_button.connect_clicked(move |_| {
-            log_info(&state, "Opening file chooser to select saved project...");
-            open_file_chooser(state.clone(), &dialog_clone);
-            dialog_clone.close();
-        });
-    }
-
     dialog.show(); 
 }
 
 // Function to update the project area with a new text project
 fn update_new_project(state: &Arc<Mutex<AppState>>) {
-    let state_clone = Arc::clone(state);
     let mut state = state.lock().unwrap();
 
     // Set the default save path
@@ -74,7 +57,7 @@ fn update_new_project(state: &Arc<Mutex<AppState>>) {
 
     // Create directory if it doesn't exist
     if let Err(e) = fs::create_dir_all(&default_project_dir) {
-        log_error(&state_clone, &format!("Failed to create default directory: {}", e));
+        log_error(&state, &format!("Failed to create default directory: {}", e));
         return;
     }
 
@@ -84,13 +67,14 @@ fn update_new_project(state: &Arc<Mutex<AppState>>) {
     // Create default file if it doesn't exist
     if !default_project_file.exists() {
         if let Err(e) = fs::write(&default_project_file, "") {
-            log_error(&state_clone, &format!("Failed to create default project file: {}", e));
+            log_error(&state, &format!("Failed to create default project file: {}", e));
             return;
         }
     }
 
     // Retrieve existing project_area
     if let Some(ref project_area) = state.project_area {
+        
         // Clear previous content
         while let Some(child) = project_area.first_child() {
             project_area.remove(&child);
@@ -112,37 +96,10 @@ fn update_new_project(state: &Arc<Mutex<AppState>>) {
         // Append scrolled window
         project_area.append(&scrolled_window);
 
+        // Update the AppState with a reference to the new TextView
+        state.text_view = Some(text_view);
+
         project_area.show();
     }
-}
-
-// Function to open file chooser dialog for selecting a saved project
-fn open_file_chooser(state: Arc<Mutex<AppState>>, parent: &impl IsA<gtk4::Window>) {
-    let dialog = FileChooserDialog::builder()
-        .title("Select Project File")
-        .transient_for(parent) 
-        .action(FileChooserAction::Open)
-        .modal(true)
-        .build();
-
-    let state_clone = Arc::clone(&state); 
-
-    dialog.connect_response(move |dialog, response| {
-        if response == ResponseType::Accept {
-            if let Some(file) = dialog.file() {
-                let file_path = file.path().expect("Failed to get file path");
-
-                // Lock the state and update the project path
-                let mut state = state_clone.lock().unwrap();
-                state.project_path = Some(file_path.clone());
-
-                // Log information
-                log_info(&state_clone, &format!("Project path set to: {}", file_path.display()));
-            }
-        }
-        dialog.close();
-    });
-
-    dialog.show();
 }
 

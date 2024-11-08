@@ -29,23 +29,22 @@ pub fn save_as_file(state: Arc<Mutex<AppState>>, parent: Arc<ApplicationWindow>)
                 // Save the content of the project area to the file
                 let state_clone_inner = Arc::clone(&state_clone);
                 let state = state_clone.lock().unwrap();
-                if let Some(ref project_area) = state.project_area {
-                    if let Some(text_view) = project_area.first_child().and_then(|widget| widget.downcast::<gtk4::TextView>().ok()) {
-                        if let Some(buffer) = text_view.buffer() {
-                            let start = buffer.start_iter();
-                            let end = buffer.end_iter();
-                            let text = buffer.text(&start, &end, true);
-                            if let Err(err) = fs::write(&file_path, text) {
-                                log_error(&state_clone_inner, &format!("Failed to save file: {}", err));
-                            } else {
-                                log_info(&state_clone_inner, &format!("File saved as: {}", file_path.display()));
+                
+                if let Some(ref text_view) = state.text_view {
+                    let buffer = text_view.buffer(); // Directly get the buffer (it's not an Option)
+                    let start = buffer.start_iter();
+                    let end = buffer.end_iter();
+                    let text = buffer.text(&start, &end, true);
+                    
+                    if let Err(err) = fs::write(&file_path, text) {
+                        log_error(&state_clone_inner, &format!("Failed to save file: {}", err));
+                    } else {
+                        log_info(&state_clone_inner, &format!("File saved as: {}", file_path.display()));
 
-                                // Update the state with the new project path
-                                drop(state); // Unlock before acquiring mutable lock
-                                let mut state = state_clone_inner.lock().unwrap();
-                                state.project_path = Some(file_path);
-                            }
-                        }
+                        // Update the state with the new project path
+                        drop(state); // Unlock before acquiring mutable lock
+                        let mut state = state_clone_inner.lock().unwrap();
+                        state.project_path = Some(file_path);
                     }
                 }
             }

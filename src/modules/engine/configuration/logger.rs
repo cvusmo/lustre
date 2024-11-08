@@ -15,6 +15,7 @@ pub struct AppState {
     pub log_label: Label,
     pub project_area: Option<gtk::Box>,
     pub project_path: Option<PathBuf>,
+    pub text_view: Option<gtk4::TextView>,
 }
 
 // Init logger
