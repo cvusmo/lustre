@@ -14,18 +14,22 @@ pub fn save_file(state: &Arc<Mutex<AppState>>) {
     if let Some(ref path) = state.project_path {
         // Save the content of the project area to the file
         if let Some(ref text_view) = state.text_view {
-            let buffer = text_view.buffer(); // Directly get the buffer (it's not an Option)
+            let buffer = text_view.buffer(); 
             let start = buffer.start_iter();
             let end = buffer.end_iter();
             let text = buffer.text(&start, &end, true);
-            
+                
             if let Err(err) = fs::write(path, text) {
                 log_error(&state_clone, &format!("Failed to save file: {}", err));
             } else {
                 log_info(&state_clone, &format!("File saved: {}", path.display()));
             }
+        } else {
+            // Log error if text view is missing
+            log_error(&state_clone, "No text view found in the current project.");
         }
     } else {
+        // Log error if the project path is not available
         log_error(&state_clone, "No file path available. Use 'Save As...' to specify a location.");
     }
 }

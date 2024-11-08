@@ -3,7 +3,7 @@
 
 use crate::modules::engine::configuration::logger::{log_info, AppState};
 use crate::modules::engine::gui::new_project::open_new_project_dialog;
-use crate::modules::engine::gui::explorer::file_explorer::open_file_dialog;
+use crate::modules::engine::gui::explorer::file_explorer::open_file;
 use crate::modules::engine::gui::save_file::save_file;
 use crate::modules::engine::gui::saveas_file::save_as_file;
 
@@ -44,7 +44,7 @@ pub fn create_menu_bar(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWin
     let state_clone_open = Arc::clone(state);
     let parent_clone_open = Arc::clone(parent);
     open_button.connect_clicked(move |_| {
-        open_file_dialog(state_clone_open.clone(), parent_clone_open.clone());
+        open_file(state_clone_open.clone(), parent_clone_open.as_ref());
     });
 
     // Save file button
@@ -89,3 +89,4 @@ pub fn create_menu_bar(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWin
     log_info(state, "Menu bar created successfully.");
     menu_bar
 }
+

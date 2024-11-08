@@ -3,18 +3,22 @@
 
 use crate::modules::engine::configuration::logger::{log_info, log_error, AppState};
 use gtk4::prelude::*;
-use gtk4::{ApplicationWindow, FileChooserAction, FileChooserDialog, Label, ResponseType};
+use gtk4::{ApplicationWindow, FileChooserAction, FileChooserDialog, TextView, ScrolledWindow, ResponseType};
 use std::sync::{Arc, Mutex};
-use gtk4::glib;
+use std::fs;
 
-// open file explorer
-pub fn open_file_dialog(state: Arc<Mutex<AppState>>, parent: Arc<ApplicationWindow>) {
+// Unified function to open a file and load it into the project area
+pub fn open_file(state: Arc<Mutex<AppState>>, parent: &impl IsA<gtk4::Window>) {
     let dialog = FileChooserDialog::builder()
         .title("Select a Text File")
-        .transient_for(parent.as_ref())
-        .action(FileChooserAction::Open)
+        .transient_for(parent) 
         .modal(true)
+        .action(FileChooserAction::Open)
         .build();
+
+    // Ensure the dialog remains in front until it is closed
+    dialog.set_modal(true);
+    dialog.set_transient_for(Some(parent));
 
     // Add a filter to allow only text files
     let filter = gtk4::FileFilter::new();
@@ -33,36 +37,50 @@ pub fn open_file_dialog(state: Arc<Mutex<AppState>>, parent: Arc<ApplicationWind
                 let file_path = file.path().expect("Failed to get file path");
 
                 // Read the file content
-                match std::fs::read_to_string(&file_path) {
-                    Ok(content) => {
-                        // Ensure UI updates run in the main context
-                        glib::MainContext::default().spawn_local({
-                            let state_clone = Arc::clone(&state_clone);
-                            async move {
-                                let state = state_clone.lock().unwrap();
+                if let Ok(content) = fs::read_to_string(&file_path) {
+                    let mut state_lock = state_clone.lock().unwrap();
 
-                                // If project_area exists, update it with new content
-                                if let Some(ref project_area) = state.project_area {
-                                    // Clear the previous content
-                                    while let Some(child) = project_area.first_child() {
-                                        project_area.remove(&child);
-                                    }
+                    // Update the project path
+                    state_lock.project_path = Some(file_path.clone());
 
-                                    // Display the new content
-                                    let content_label = Label::new(Some(&content));
-                                    project_area.append(&content_label);
-                                    content_label.show(); // Make sure new label is visible
-                                    project_area.show();  // Ensure project area is updated
-                                }
+                    // Clone the `project_area` and release the lock on state before making mutable changes
+                    let project_area = state_lock.project_area.clone();
+                    drop(state_lock); 
 
-                                // Log information
-                                log_info(&state_clone, &format!("Opened file: {}", file_path.display()));
-                            }
-                        });
+                    // Update the project area with the file content
+                    if let Some(ref project_area) = project_area {
+                        // Clear the previous content
+                        while let Some(child) = project_area.first_child() {
+                            project_area.remove(&child);
+                        }
+
+                        // Add a TextView with the loaded content
+                        let text_view = TextView::new();
+                        text_view.set_editable(true);
+                        text_view.set_wrap_mode(gtk4::WrapMode::Word);
+                        text_view.buffer().set_text(&content);
+
+                        let scrolled_window = ScrolledWindow::new();
+                        scrolled_window.set_vexpand(true);
+                        scrolled_window.set_hexpand(true);
+                        scrolled_window.set_min_content_width(400);
+                        scrolled_window.set_min_content_height(300);
+                        scrolled_window.set_child(Some(&text_view));
+                        scrolled_window.set_policy(gtk4::PolicyType::Automatic, gtk4::PolicyType::Automatic);
+
+                        // Append scrolled window
+                        project_area.append(&scrolled_window);
+                        project_area.show();
+
+                        // Re-lock the state to update `text_view`
+                        let mut state_lock = state_clone.lock().unwrap();
+                        state_lock.text_view = Some(text_view);
+
+                        // Log information
+                        log_info(&state_clone, &format!("Project path set to: {}", file_path.display()));
                     }
-                    Err(err) => {
-                        log_error(&state_clone, &format!("Failed to read file content: {}", err));
-                    }
+                } else {
+                    log_error(&state_clone, &format!("Failed to read file content from: {}", file_path.display()));
                 }
             }
         }
