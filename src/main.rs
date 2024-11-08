@@ -10,8 +10,6 @@ use crate::modules::engine::configuration::{
 };
 
 use crate::modules::engine::gui;
-use crate::modules::engine::render;
-
 use crate::debug::debug::enable_debug_mode;
 
 use clap::{Arg, Command};

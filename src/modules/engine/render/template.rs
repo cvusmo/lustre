@@ -1,59 +1,65 @@
-use gtk4 as gtk;
-use gtk::prelude::*;
-use gtk::DrawingArea;
-use wgpu::util::DeviceExt;
-use std::sync::{Arc, Mutex};
-use winit::platform::unix::WindowBuilderExtUnix;
+// src/modules/engine/render/template.rs
+// github.com/cvusmo/gameengine
 
-// Create a struct to handle wgpu state
-struct WgpuContext {
+use gtk4::prelude::*;
+use gtk4::DrawingArea;
+use wgpu::Surface;
+use std::rc::Rc;
+use std::cell::RefCell;
+
+struct WgpuContext<'a> {
     instance: wgpu::Instance,
-    surface: wgpu::Surface,
+    surface: Option<Surface<'a>>,
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
 }
 
-impl WgpuContext {
-    async fn new() -> Self {
-        // Create a new instance of WGPU and configure it
-        let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
+impl<'a> WgpuContext<'a> {
+    async fn new(width: i32, height: i32) -> Self {
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::PRIMARY,
+            ..Default::default()
+        });
+
+        // Placeholder for creating the WGPU surface
+
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::HighPerformance,
                 compatible_surface: None,
+                force_fallback_adapter: false,
             })
             .await
-            .unwrap();
+            .expect("Failed to find an appropriate adapter");
 
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
-                    features: wgpu::Features::empty(),
-                    limits: wgpu::Limits::default(),
+                    required_features: wgpu::Features::empty(),
+                    required_limits: wgpu::Limits::default(),
                     label: None,
+                    memory_hints: wgpu::MemoryHints::default(),
                 },
                 None,
             )
             .await
-            .unwrap();
+            .expect("Failed to create device");
 
-        // Create a dummy surface configuration for now
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: wgpu::TextureFormat::Bgra8Unorm,
-            width: 800,
-            height: 600,
+            format: wgpu::TextureFormat::Bgra8UnormSrgb, // Example format
+            width: width as u32,
+            height: height as u32,
             present_mode: wgpu::PresentMode::Fifo,
+            alpha_mode: wgpu::CompositeAlphaMode::Opaque,
+            view_formats: vec![],
+            desired_maximum_frame_latency: 2,
         };
-
-        let surface = instance.create_surface(&winit::window::Window::new().unwrap());
-
-        surface.configure(&device, &config);
 
         Self {
             instance,
-            surface,
+            surface: None, // Configure this properly later
             device,
             queue,
             config,
@@ -61,19 +67,28 @@ impl WgpuContext {
     }
 
     fn render(&mut self) {
-        // Rendering function for WGPU
+        // Placeholder for rendering logic
     }
 }
 
 pub fn setup_wgpu_rendering(drawing_area: &DrawingArea) {
     drawing_area.connect_realize(move |area| {
-        // Integrate WGPU rendering when the widget is realized
-        // Create WGPU context asynchronously
-        let context = WgpuContext::new();
+        let width = area.allocated_width();
+        let height = area.allocated_height();
 
+        let wgpu_context = Rc::new(RefCell::new(None));
+
+        let context_clone = wgpu_context.clone();
         glib::MainContext::default().spawn_local(async move {
-            let mut wgpu_context = context.await;
-            wgpu_context.render();
+            let context = WgpuContext::new(width, height).await;
+            *context_clone.borrow_mut() = Some(context);
+        });
+
+        let context_clone = wgpu_context.clone();
+        area.set_draw_func(move |_widget, _context, _width, _height| {
+            if let Some(ref mut context) = *context_clone.borrow_mut() {
+                context.render();
+            }
         });
     });
 }
