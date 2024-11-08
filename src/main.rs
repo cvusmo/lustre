@@ -21,23 +21,39 @@ use std::sync::{Arc, Mutex};
 const APP_ID: &str = "org.cvusmo.gameengine";
 
 fn main() -> glib::ExitCode {
-    let _gtkinit = gtk::init();
+    if let Err(e) = gtk::init() {
+        eprintln!("Failed to initialize GTK: {}", e);
+        return glib::ExitCode::FAILURE;
+    }
     let lua = Lua::new();
 
-    let add = lua.create_function(|_, (a, b): (i32, i32)| {
-    Ok(a + b)
-})?;
+    // Error handling for Lua function creation
+    let add = match lua.create_function(|_, (a, b): (i32, i32)| Ok(a + b)) {
+        Ok(func) => func,
+        Err(e) => {
+            eprintln!("Failed to create Lua function: {}", e);
+            return glib::ExitCode::FAILURE;
+        }
+    };
 
-    lua.globals().set("add", add)?;
+    // Error handling for setting Lua globals
+    if let Err(e) = lua.globals().set("add", add) {
+        eprintln!("Failed to set Lua global: {}", e);
+        return glib::ExitCode::FAILURE;
+    }
 
-    lua.load(r#"
+    // Error handling for executing Lua script
+    if let Err(e) = lua.load(r#"
         local result = add(3, 4)
         print("Result of addition:", result)
-    "#).exec()?;
+    "#).exec() {
+        eprintln!("Failed to execute Lua script: {}", e);
+        return glib::ExitCode::FAILURE;
+    }
 
     let matches = Command::new("gameengine")
         .version("0.0.1")
-        .about("gamengine - A voxel game engine")
+        .about("gameengine - A voxel game engine")
         .arg(
             Arg::new("debug")
                 .short('d')
@@ -64,7 +80,8 @@ fn main() -> glib::ExitCode {
     // Create log
     let state = create_state();
     if let Err(e) = setup_logging(&state, debug_mode) {
-        log_error(&state, &format!("Failed to setup logging: {}", e));
+        eprintln!("Failed to setup logging: {}", e);
+        return glib::ExitCode::FAILURE;
     }
 
     // Handle config file
@@ -75,7 +92,7 @@ fn main() -> glib::ExitCode {
 
     // Create application
     let app = Application::builder().application_id(APP_ID).build();
-    
+
     // Pass the config_file to run_main
     app.connect_activate(move |app| run_main(app, &state, config_file.clone()));
     app.run()
