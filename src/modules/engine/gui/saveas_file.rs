@@ -6,6 +6,7 @@ use gtk4::prelude::*;
 use gtk4::{ApplicationWindow, FileChooserAction, FileChooserDialog, ResponseType};
 use std::fs;
 use std::sync::{Arc, Mutex};
+use gtk4::glib;
 
 // Function to save the current project as a new file
 pub fn save_as_file(state: Arc<Mutex<AppState>>, parent: Arc<ApplicationWindow>) {
@@ -26,27 +27,37 @@ pub fn save_as_file(state: Arc<Mutex<AppState>>, parent: Arc<ApplicationWindow>)
             if let Some(file) = dialog.file() {
                 let file_path = file.path().expect("Failed to get file path");
 
-                // Save the content of the project area to the file
+                // Clone state for async operation
                 let state_clone_inner = Arc::clone(&state_clone);
-                let state = state_clone.lock().unwrap();
-                
-                if let Some(ref text_view) = state.text_view {
-                    let buffer = text_view.buffer(); // Directly get the buffer (it's not an Option)
-                    let start = buffer.start_iter();
-                    let end = buffer.end_iter();
-                    let text = buffer.text(&start, &end, true);
-                    
-                    if let Err(err) = fs::write(&file_path, text) {
-                        log_error(&state_clone_inner, &format!("Failed to save file: {}", err));
-                    } else {
-                        log_info(&state_clone_inner, &format!("File saved as: {}", file_path.display()));
 
-                        // Update the state with the new project path
-                        drop(state); // Unlock before acquiring mutable lock
-                        let mut state = state_clone_inner.lock().unwrap();
-                        state.project_path = Some(file_path);
+                glib::MainContext::default().spawn_local(async move {
+                    let state = state_clone_inner.lock().unwrap();
+
+                    if let Some(ref text_view) = state.text_view {
+                        let buffer = text_view.buffer();
+                        let start = buffer.start_iter();
+                        let end = buffer.end_iter();
+                        let text = buffer.text(&start, &end, true);
+
+                        // Release the lock before performing file I/O
+                        drop(state);
+
+                        match fs::write(&file_path, text) {
+                            Ok(_) => {
+                                log_info(&state_clone_inner, &format!("File saved as: {}", file_path.display()));
+
+                                // Update the state with the new project path
+                                let mut state = state_clone_inner.lock().unwrap();
+                                state.project_path = Some(file_path);
+                            }
+                            Err(err) => {
+                                log_error(&state_clone_inner, &format!("Failed to save file: {}", err));
+                            }
+                        }
+                    } else {
+                        log_error(&state_clone_inner, "No text view found in the current project.");
                     }
-                }
+                });
             }
         }
         dialog.close();

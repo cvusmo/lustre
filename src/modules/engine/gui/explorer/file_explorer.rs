@@ -2,17 +2,19 @@
 // github.com/cvusmo/gameengine
 
 use crate::modules::engine::configuration::logger::{log_info, log_error, AppState};
+use crate::modules::engine::gui::utils::{load_project_content}; 
 use gtk4::prelude::*;
-use gtk4::{ApplicationWindow, FileChooserAction, FileChooserDialog, TextView, ScrolledWindow, ResponseType};
+use gtk4::{FileChooserAction, FileChooserDialog, ResponseType};
 use std::sync::{Arc, Mutex};
+use gtk4::glib;
 use std::fs;
 
 // Unified function to open a file and load it into the project area
 pub fn open_file(state: Arc<Mutex<AppState>>, parent: &impl IsA<gtk4::Window>) {
     let dialog = FileChooserDialog::builder()
         .title("Select a Text File")
-        .transient_for(parent) 
-        .modal(true)
+        .transient_for(parent)  
+        .modal(true)            
         .action(FileChooserAction::Open)
         .build();
 
@@ -35,53 +37,30 @@ pub fn open_file(state: Arc<Mutex<AppState>>, parent: &impl IsA<gtk4::Window>) {
         if response == ResponseType::Accept {
             if let Some(file) = dialog.file() {
                 let file_path = file.path().expect("Failed to get file path");
+                
+                // Clone the state to use in async operation
+                let state_clone_inner = Arc::clone(&state_clone);
 
-                // Read the file content
-                if let Ok(content) = fs::read_to_string(&file_path) {
-                    let mut state_lock = state_clone.lock().unwrap();
+                glib::MainContext::default().spawn_local(async move {
+                    // Read the file content asynchronously
+                    match fs::read_to_string(&file_path) {
+                        Ok(content) => {
+                            {
+                                let mut state_lock = state_clone_inner.lock().unwrap();
+                                state_lock.project_path = Some(file_path.clone());
+                            }
 
-                    // Update the project path
-                    state_lock.project_path = Some(file_path.clone());
-
-                    // Clone the `project_area` and release the lock on state before making mutable changes
-                    let project_area = state_lock.project_area.clone();
-                    drop(state_lock); 
-
-                    // Update the project area with the file content
-                    if let Some(ref project_area) = project_area {
-                        // Clear the previous content
-                        while let Some(child) = project_area.first_child() {
-                            project_area.remove(&child);
+                            // Use the utility function to load the project content
+                            load_project_content(&state_clone_inner, &content);
+                            
+                            // Log information
+                            log_info(&state_clone_inner, &format!("Project path set to: {}", file_path.display()));
                         }
-
-                        // Add a TextView with the loaded content
-                        let text_view = TextView::new();
-                        text_view.set_editable(true);
-                        text_view.set_wrap_mode(gtk4::WrapMode::Word);
-                        text_view.buffer().set_text(&content);
-
-                        let scrolled_window = ScrolledWindow::new();
-                        scrolled_window.set_vexpand(true);
-                        scrolled_window.set_hexpand(true);
-                        scrolled_window.set_min_content_width(400);
-                        scrolled_window.set_min_content_height(300);
-                        scrolled_window.set_child(Some(&text_view));
-                        scrolled_window.set_policy(gtk4::PolicyType::Automatic, gtk4::PolicyType::Automatic);
-
-                        // Append scrolled window
-                        project_area.append(&scrolled_window);
-                        project_area.show();
-
-                        // Re-lock the state to update `text_view`
-                        let mut state_lock = state_clone.lock().unwrap();
-                        state_lock.text_view = Some(text_view);
-
-                        // Log information
-                        log_info(&state_clone, &format!("Project path set to: {}", file_path.display()));
+                        Err(err) => {
+                            log_error(&state_clone_inner, &format!("Failed to read file content: {}", err));
+                        }
                     }
-                } else {
-                    log_error(&state_clone, &format!("Failed to read file content from: {}", file_path.display()));
-                }
+                });
             }
         }
         dialog.close();
