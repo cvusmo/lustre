@@ -89,4 +89,3 @@ pub fn create_menu_bar(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWin
     log_info(state, "Menu bar created successfully.");
     menu_bar
 }
-

@@ -2,10 +2,12 @@
 // github.com/cvusmo/gameengine
 
 use gtk4::prelude::*;
-use gtk4::{ApplicationWindow, Button, Dialog, FileChooserAction, 
-    FileChooserDialog, ResponseType, Box as GtkBox, Label, Orientation, TextView, ScrolledWindow};
-use crate::modules::engine::configuration::logger::{log_info, AppState};
+use gtk4::{ApplicationWindow, Button, Dialog, FileChooserAction, FileChooserDialog, ResponseType, Box as GtkBox, Label, Orientation, TextView, ScrolledWindow};
+use crate::modules::engine::configuration::logger::{log_info, log_error, AppState};
 use std::sync::{Arc, Mutex};
+use std::env;
+use std::fs;
+use std::path::PathBuf;
 
 // Function to open the "New Project" dialog
 pub fn open_new_project_dialog(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWindow>) {
@@ -62,6 +64,7 @@ pub fn open_new_project_dialog(state: &Arc<Mutex<AppState>>, parent: &Arc<Applic
 
 // Function to update the project area with a new text project
 fn update_new_project(state: &Arc<Mutex<AppState>>) {
+    let state_clone = Arc::clone(state);
     let mut state = state.lock().unwrap();
 
     // Set the default save path
@@ -71,7 +74,7 @@ fn update_new_project(state: &Arc<Mutex<AppState>>) {
 
     // Create directory if it doesn't exist
     if let Err(e) = fs::create_dir_all(&default_project_dir) {
-        log_error(&state, &format!("Failed to create default directory: {}", e));
+        log_error(&state_clone, &format!("Failed to create default directory: {}", e));
         return;
     }
 
@@ -80,17 +83,15 @@ fn update_new_project(state: &Arc<Mutex<AppState>>) {
 
     // Create default file if it doesn't exist
     if !default_project_file.exists() {
-        if let Err(e) = fs::write::(&default_project_file, "") {
-            log_error(&state, &format!("Failed to create default project file: {}", e));
+        if let Err(e) = fs::write(&default_project_file, "") {
+            log_error(&state_clone, &format!("Failed to create default project file: {}", e));
             return;
         }
     }
 
     // Retrieve existing project_area
     if let Some(ref project_area) = state.project_area {
-        
         // Clear previous content
-        // TODO: ADD SAVE BEFORE CLEARING
         while let Some(child) = project_area.first_child() {
             project_area.remove(&child);
         }
@@ -100,7 +101,7 @@ fn update_new_project(state: &Arc<Mutex<AppState>>) {
         text_view.set_editable(true);
         text_view.set_wrap_mode(gtk4::WrapMode::Word);
 
-        let scrolled_window = gtk4::ScrolledWindow::new();
+        let scrolled_window = ScrolledWindow::new();
         scrolled_window.set_vexpand(true);
         scrolled_window.set_hexpand(true);
         scrolled_window.set_min_content_width(400);
@@ -113,7 +114,6 @@ fn update_new_project(state: &Arc<Mutex<AppState>>) {
 
         project_area.show();
     }
-
 }
 
 // Function to open file chooser dialog for selecting a saved project
