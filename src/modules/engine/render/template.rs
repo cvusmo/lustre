@@ -3,159 +3,114 @@
 
 use gtk4::prelude::*;
 use gtk4::DrawingArea;
-use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, WindowHandle};
-use wgpu::{Instance, Surface, SurfaceTarget, MemoryHints};
+use gdk4::Display;
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::sync::Arc;
+use vulkano::device::{Device, DeviceExtensions, Queue};
+use vulkano::instance::{Instance, InstanceExtensions, PhysicalDevice};
+use vulkano::swapchain::{Surface, Swapchain, SwapchainCreateInfo};
+use vulkano::sync::GpuFuture;
+use vulkano::VulkanLibrary;
+use vulkano_win::VkSurfaceBuild;
+use winit::platform::unix::WindowBuilderExtUnix;
+use winit::window::WindowBuilder;
 
-struct WgpuContext<'a> {
-    instance: wgpu::Instance,
-    surface: Surface<'a>,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-    config: wgpu::SurfaceConfiguration,
+struct VulkanContext {
+    device: Arc<Device>,
+    queue: Arc<Queue>,
+    swapchain: Arc<Swapchain>,
 }
 
-impl<'a> WgpuContext<'a> {
-    async fn new(width: i32, height: i32, surface: Surface<'a>) -> Self {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::PRIMARY,
-            ..Default::default()
-        });
+impl VulkanContext {
+    fn new(surface: Arc<Surface>, width: u32, height: u32) -> Self {
+        // Create a Vulkan instance
+        let library = VulkanLibrary::new().unwrap();
+        let instance = Instance::new(library, InstanceExtensions::none(), None).unwrap();
 
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::HighPerformance,
-                compatible_surface: Some(&surface),
-                force_fallback_adapter: false,
-            })
-            .await
-            .expect("Failed to find an appropriate adapter");
+        // Select a physical device
+        let physical = PhysicalDevice::enumerate(&instance)
+            .next()
+            .expect("No device available");
 
-        let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    required_features: wgpu::Features::empty(),
-                    required_limits: wgpu::Limits::default(),
-                    label: None,
-                    memory_hints: MemoryHints::Performance, // Set to prioritize performance
-                },
-                None,
-            )
-            .await
-            .expect("Failed to create device");
+        // Find a queue family that supports graphics
+        let queue_family = physical
+            .queue_families()
+            .find(|&q| q.supports_graphics() && surface.is_supported(q).unwrap_or(false))
+            .expect("Couldn't find a graphical queue family");
 
-        let capabilities = surface.get_capabilities(&adapter);
-        let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: capabilities.formats[0],
-            width: width as u32,
-            height: height as u32,
-            present_mode: wgpu::PresentMode::Fifo,
-            alpha_mode: wgpu::CompositeAlphaMode::Opaque,
-            view_formats: vec![],
-            desired_maximum_frame_latency: 2, // Set a default frame latency
-        };
+        // Create a logical device and a graphics queue
+        let (device, mut queues) = Device::new(
+            physical,
+            physical.supported_features(),
+            &DeviceExtensions {
+                khr_swapchain: true,
+                ..DeviceExtensions::none()
+            },
+            [(queue_family, 0.5)].iter().cloned(),
+        )
+        .unwrap();
 
-        surface.configure(&device, &config);
+        let queue = queues.next().unwrap();
+
+        // Create the swapchain
+        let (swapchain, _) = Swapchain::new(
+            device.clone(),
+            surface.clone(),
+            SwapchainCreateInfo {
+                min_image_count: 2,
+                image_format: Some(surface.format().unwrap().0),
+                image_extent: [width, height],
+                image_usage: vulkano::image::ImageUsage::color_attachment(),
+                composite_alpha: vulkano::swapchain::CompositeAlpha::Opaque,
+                ..Default::default()
+            },
+        )
+        .unwrap();
 
         Self {
-            instance,
-            surface,
             device,
             queue,
-            config,
+            swapchain,
         }
     }
 
-    fn render(&mut self) {
-        let frame = match self.surface.get_current_texture() {
-            Ok(frame) => frame,
-            Err(e) => {
-                eprintln!("Failed to acquire next surface texture: {e}");
-                self.surface.configure(&self.device, &self.config);
-                return;
-            }
-        };
-
-        let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Render Encoder"),
-        });
-
-        {
-            let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
-                        }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                occlusion_query_set: None,
-                timestamp_writes: None,
-            });
-        }
-
-        self.queue.submit(Some(encoder.finish()));
-        frame.present();
+    fn render(&self) {
+        // Rendering logic goes here
+        // For simplicity, we are not implementing the full rendering loop here
+        println!("Rendering frame...");
     }
 }
 
-pub fn setup_wgpu_rendering(drawing_area: &DrawingArea) {
+pub fn setup_vulkan_rendering(drawing_area: &DrawingArea) {
+    let width = drawing_area.content_width() as u32;
+    let height = drawing_area.content_height() as u32;
+
+    let vulkan_context = Rc::new(RefCell::new(None));
+
+    let context_clone = vulkan_context.clone();
     drawing_area.connect_realize(move |area| {
-        let width = area.allocated_width();
-        let height = area.allocated_height();
+        let display = Display::default().expect("Failed to get default display");
+        let gdk_window = area.window().expect("Failed to get GDK window");
+        let window_handle = gdk_window.raw_handle();
 
-        let wgpu_context = Rc::new(RefCell::new(None));
+        // Create a Vulkan surface using winit and vulkano-win
+        let surface = WindowBuilder::new()
+            .with_name("Vulkan Surface")
+            .with_visible(false)
+            .with_override_redirect(true)
+            .build_vk_surface(&window_handle, display.clone())
+            .unwrap();
 
-        let context_clone = wgpu_context.clone();
-        glib::MainContext::default().spawn_local(async move {
-            // Get the toplevel window associated with the DrawingArea
-            if let Some(window) = area.native() {
-                if let Ok(window) = window.downcast::<gtk4::Window>() {
-                    let raw_window_handle = window.raw_window_handle();
+        let context = VulkanContext::new(surface, width, height);
+        *context_clone.borrow_mut() = Some(context);
+    });
 
-                    // Create the WGPU instance
-                    let instance = Instance::new(wgpu::InstanceDescriptor {
-                        backends: wgpu::Backends::PRIMARY,
-                        ..Default::default()
-                    });
-
-                    // Create the WGPU surface using SurfaceTarget::Window
-                    let surface_target = SurfaceTarget::Window(Box::new(raw_window_handle));
-                    let surface = match instance.create_surface(surface_target) {
-                        Ok(surface) => surface,
-                        Err(e) => {
-                            eprintln!("Failed to create WGPU surface: {e}");
-                            return;
-                        }
-                    };
-
-                    let context = WgpuContext::new(width, height, surface).await;
-                    *context_clone.borrow_mut() = Some(context);
-                } else {
-                    eprintln!("Failed to downcast native window to gtk4::Window.");
-                }
-            } else {
-                eprintln!("Failed to get toplevel window for creating WGPU surface.");
-            }
-        });
-
-        let context_clone = wgpu_context.clone();
-        area.set_draw_func(move |_widget, _context, _width, _height| {
-            if let Some(ref mut context) = *context_clone.borrow_mut() {
-                context.render();
-            }
-        });
+    let context_clone = vulkan_context.clone();
+    drawing_area.set_draw_func(move |_area, _cairo_context, _width, _height| {
+        if let Some(ref context) = *context_clone.borrow() {
+            context.render();
+        }
     });
 }
 

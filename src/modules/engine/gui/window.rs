@@ -7,8 +7,7 @@ use crate::modules::engine::gui::menu_bar::create_menu_bar;
 use crate::modules::engine::render::template;
 
 use gtk4 as gtk;
-use gtk::{ gdk::Display, prelude::*, Application, 
-    ApplicationWindow, CssProvider, Grid, Label};
+use gtk::{gdk::Display, prelude::*, Application, ApplicationWindow, CssProvider, Grid, Label, DrawingArea};
 use std::{env, path::{Path, PathBuf}, sync::{Arc, Mutex}};
 
 pub fn build_ui(
@@ -47,7 +46,7 @@ pub fn build_ui(
     }
 
     // Create the rendering area and set it in the layout
-    let rendering_area = gtk::DrawingArea::new();
+    let rendering_area = DrawingArea::new();
     rendering_area.set_vexpand(true);
     rendering_area.set_hexpand(true);
     rendering_area.set_content_width(800);
