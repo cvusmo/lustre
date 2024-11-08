@@ -66,23 +66,6 @@ fn create_project_area() -> gtk::Box {
     project_area
 }
 
-// Update project area
-pub fn update_project_area(state: &Arc<Mutex<AppState>>) {
-    let state = state.lock().unwrap();
-
-    // Retrieve the existing project_area from the AppState
-    if let Some(ref project_area) = state.project_area {
-        
-        while let Some(child) = project_area.first_child() {
-            project_area.remove(&child);
-        }
-
-        // Add new content
-        let label = Label::new(Some("Updated Project Area"));
-        project_area.append(&label);
-    }
-}
-
 // Loads theme configuration 
 fn load_theme(config: &Config, state: &Arc<Mutex<AppState>>) -> (String, String, f32) {
     let background_color = config.theme.background_color.clone();
@@ -126,9 +109,6 @@ fn generate_css(font_color: &str, font_size: f32, background_color: &str) -> Str
         .clock {{
             color: {};
             font-size: {}px;
-            width: 100%;
-            height: 100%;
-            text-align: center;
         }}
         .window {{
             background-color: {};

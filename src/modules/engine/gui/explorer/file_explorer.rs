@@ -5,7 +5,9 @@ use crate::modules::engine::configuration::logger::{log_info, log_error, AppStat
 use gtk4::prelude::*;
 use gtk4::{ApplicationWindow, FileChooserAction, FileChooserDialog, Label, ResponseType};
 use std::sync::{Arc, Mutex};
+use gtk4::glib;
 
+// open file explorer
 pub fn open_file_dialog(state: Arc<Mutex<AppState>>, parent: Arc<ApplicationWindow>) {
     let dialog = FileChooserDialog::builder()
         .title("Select a Text File")
@@ -31,26 +33,36 @@ pub fn open_file_dialog(state: Arc<Mutex<AppState>>, parent: Arc<ApplicationWind
                 let file_path = file.path().expect("Failed to get file path");
 
                 // Read the file content
-                if let Ok(content) = std::fs::read_to_string(&file_path) {
-                    let mut state = state_clone.lock().unwrap();
+                match std::fs::read_to_string(&file_path) {
+                    Ok(content) => {
+                        // Ensure UI updates run in the main context
+                        glib::MainContext::default().spawn_local({
+                            let state_clone = Arc::clone(&state_clone);
+                            async move {
+                                let state = state_clone.lock().unwrap();
 
-                    // If project_area exists, update it with new content
-                    if let Some(ref project_area) = state.project_area {
-                        // Clear the previous content
-                        while let Some(child) = project_area.first_child() {
-                            project_area.remove(&child);
-                        }
+                                // If project_area exists, update it with new content
+                                if let Some(ref project_area) = state.project_area {
+                                    // Clear the previous content
+                                    while let Some(child) = project_area.first_child() {
+                                        project_area.remove(&child);
+                                    }
 
-                        // Display the new content
-                        let content_label = Label::new(Some(&content));
-                        project_area.append(&content_label);
-                        project_area.show();
+                                    // Display the new content
+                                    let content_label = Label::new(Some(&content));
+                                    project_area.append(&content_label);
+                                    content_label.show(); // Make sure new label is visible
+                                    project_area.show();  // Ensure project area is updated
+                                }
+
+                                // Log information
+                                log_info(&state_clone, &format!("Opened file: {}", file_path.display()));
+                            }
+                        });
                     }
-
-                    // Log information
-                    log_info(&state_clone, &format!("Opened file: {}", file_path.display()));
-                } else {
-                    log_error(&state_clone, "Failed to read file content");
+                    Err(err) => {
+                        log_error(&state_clone, &format!("Failed to read file content: {}", err));
+                    }
                 }
             }
         }
@@ -59,3 +71,4 @@ pub fn open_file_dialog(state: Arc<Mutex<AppState>>, parent: Arc<ApplicationWind
 
     dialog.show();
 }
+

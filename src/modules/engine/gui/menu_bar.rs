@@ -4,6 +4,8 @@
 use crate::modules::engine::configuration::logger::{log_info, AppState};
 use crate::modules::engine::gui::new_project::open_new_project_dialog;
 use crate::modules::engine::gui::explorer::file_explorer::open_file_dialog;
+use crate::modules::engine::gui::save_file::save_file;
+use crate::modules::engine::gui::saveas_file::save_as_file;
 
 use gtk4::prelude::*;
 use gtk4::{Align, ApplicationWindow, Button, Box as GtkBox, Label, MenuButton, Orientation, Popover};
@@ -45,11 +47,28 @@ pub fn create_menu_bar(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWin
         open_file_dialog(state_clone_open.clone(), parent_clone_open.clone());
     });
 
+    // Save file button
+    let save_button = Button::with_label("Save");
+    file_box.append(&save_button);
+    let state_clone_save = Arc::clone(state);
+    save_button.connect_clicked(move |_| {
+        save_file(&state_clone_save);
+    });
+
+    // Save As... button
+    let save_as_button = Button::with_label("Save As");
+    file_box.append(&save_as_button);
+    let state_clone_save_as = Arc::clone(state);
+    let parent_clone_save_as = Arc::clone(parent);
+    save_as_button.connect_clicked(move |_| {
+        save_as_file(state_clone_save_as.clone(), parent_clone_save_as.clone());
+    });
+
     // TODO: Add Exit with a prompt to check if saved
     file_box.append(&Label::new(Some("Exit")));
     file_popover.set_child(Some(&file_box));
     file_button.set_popover(Some(&file_popover));
-
+    
     // Edit button
     let edit_button = MenuButton::builder()
         .label("Edit")
