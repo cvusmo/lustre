@@ -78,7 +78,7 @@ fn update_new_project(state: &Arc<Mutex<AppState>>) {
 
     if let Some(ref project_area) = project_area {
         // Use the utility to clear the project area
-        clear_project_area(project_area);
+        clear_project_area(&project_area);
 
         // Load empty content into the project area using the utility function
         load_project_content(state, "");

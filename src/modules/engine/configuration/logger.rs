@@ -40,7 +40,8 @@ fn initialize_logger(state: &Arc<Mutex<AppState>>, log_file_path: &str, log_leve
         .chain(log_file_result)
         .apply()?;
 
-    log_info(state, &format!("Logger successfully created: {}", log_file_path));
+    //log_info(state, &format!("Logger successfully created: {}", log_file_path));
+    LOGGER_INITIALIZED.set(true).unwrap();
     Ok(())
 }
 
@@ -122,3 +123,4 @@ pub fn log_error(state: &Arc<Mutex<AppState>>, message: &str) {
     log::error!("{}", message);
     update_log_label(state, message);
 }
+

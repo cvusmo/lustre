@@ -1,12 +1,11 @@
 // src/modules/engine/gui/menu_bar.rs
 // github.com/cvusmo/gameengine
 
-use crate::modules::engine::configuration::logger::{log_info, log_warn, log_error, AppState};
-use crate::modules::engine::gui::new_project::open_new_project_dialog;
-use crate::modules::engine::gui::explorer::file_explorer::open_file;
-use crate::modules::engine::gui::save_file::save_file;
-use crate::modules::engine::gui::saveas_file::save_as_file;
-use crate::modules::engine::gui::utils::handle_exit;
+use crate::modules::engine::configuration::logger::*;
+use crate::modules::engine::configuration::logger::AppState;
+use crate::modules::engine::gui::new_project::*;
+use crate::modules::engine::gui::explorer::file_explorer::*;
+use crate::modules::engine::gui::utils::{save_file, save_as_file, handle_exit};
 
 use gtk4::prelude::*;
 use gtk4::{Align, ApplicationWindow, Button, Box as GtkBox, Label, MenuButton, Orientation, Popover, Application};
@@ -38,7 +37,7 @@ pub fn create_menu_bar(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWin
     new_button.connect_clicked(move |_| {
         log_info(&state_clone, "New project button clicked.");
         open_new_project_dialog(&state_clone, &parent_clone);
-        log_info(&state_clone, "New project dialog opened successfully.");
+        log_info(&state_clone, "New project dialog opened.");
     });
 
     // Open file button
@@ -49,7 +48,6 @@ pub fn create_menu_bar(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWin
     open_button.connect_clicked(move |_| {
         log_info(&state_clone_open, "Open file button clicked.");
         open_file(state_clone_open.clone(), parent_clone_open.as_ref());
-        log_info(&state_clone_open, "File dialog opened successfully.");
     });
 
     // Save file button
@@ -59,7 +57,7 @@ pub fn create_menu_bar(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWin
     save_button.connect_clicked(move |_| {
         log_info(&state_clone_save, "Save file button clicked.");
         save_file(&state_clone_save);
-        log_info(&state_clone_save, "File saved successfully.");
+        log_info(&state_clone_save, "File saved operation finished.");
     });
 
     // Save As... button
@@ -70,7 +68,7 @@ pub fn create_menu_bar(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWin
     save_as_button.connect_clicked(move |_| {
         log_info(&state_clone_save_as, "Save As button clicked.");
         save_as_file(state_clone_save_as.clone(), parent_clone_save_as.clone());
-        log_info(&state_clone_save_as, "Save As dialog opened successfully.");
+        log_info(&state_clone_save_as, "Save As operation finished.");
     });
 
     // Exit button
@@ -85,7 +83,7 @@ pub fn create_menu_bar(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWin
 
     file_popover.set_child(Some(&file_box));
     file_button.set_popover(Some(&file_popover));
-    
+
     // Edit button
     let edit_button = MenuButton::builder()
         .label("Edit")
