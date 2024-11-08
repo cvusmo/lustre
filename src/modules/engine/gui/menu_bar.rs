@@ -1,7 +1,7 @@
 // src/modules/engine/gui/menu_bar.rs
 // github.com/cvusmo/gameengine
 
-use crate::modules::engine::configuration::logger::{log_info, AppState};
+use crate::modules::engine::configuration::logger::{log_info, log_warn, log_error, AppState};
 use crate::modules::engine::gui::new_project::open_new_project_dialog;
 use crate::modules::engine::gui::explorer::file_explorer::open_file;
 use crate::modules::engine::gui::save_file::save_file;
@@ -36,7 +36,9 @@ pub fn create_menu_bar(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWin
     let state_clone = Arc::clone(state);
     let parent_clone = Arc::clone(parent);
     new_button.connect_clicked(move |_| {
+        log_info(&state_clone, "New project button clicked.");
         open_new_project_dialog(&state_clone, &parent_clone);
+        log_info(&state_clone, "New project dialog opened successfully.");
     });
 
     // Open file button
@@ -45,7 +47,9 @@ pub fn create_menu_bar(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWin
     let state_clone_open = Arc::clone(state);
     let parent_clone_open = Arc::clone(parent);
     open_button.connect_clicked(move |_| {
+        log_info(&state_clone_open, "Open file button clicked.");
         open_file(state_clone_open.clone(), parent_clone_open.as_ref());
+        log_info(&state_clone_open, "File dialog opened successfully.");
     });
 
     // Save file button
@@ -53,7 +57,9 @@ pub fn create_menu_bar(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWin
     file_box.append(&save_button);
     let state_clone_save = Arc::clone(state);
     save_button.connect_clicked(move |_| {
+        log_info(&state_clone_save, "Save file button clicked.");
         save_file(&state_clone_save);
+        log_info(&state_clone_save, "File saved successfully.");
     });
 
     // Save As... button
@@ -62,7 +68,9 @@ pub fn create_menu_bar(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWin
     let state_clone_save_as = Arc::clone(state);
     let parent_clone_save_as = Arc::clone(parent);
     save_as_button.connect_clicked(move |_| {
+        log_info(&state_clone_save_as, "Save As button clicked.");
         save_as_file(state_clone_save_as.clone(), parent_clone_save_as.clone());
+        log_info(&state_clone_save_as, "Save As dialog opened successfully.");
     });
 
     // Exit button
@@ -71,6 +79,7 @@ pub fn create_menu_bar(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWin
     let state_clone_exit = Arc::clone(state);
     let app_clone = app.clone();
     exit_button.connect_clicked(move |_| {
+        log_info(&state_clone_exit, "Exit button clicked.");
         handle_exit(state_clone_exit.clone(), &app_clone);
     });
 
