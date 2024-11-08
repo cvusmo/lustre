@@ -4,16 +4,17 @@
 use fern::Dispatch;
 use gtk::Label;
 use gtk4 as gtk;
-use std::error::Error;
-use std::env;
-use std::fs::File;
-use std::sync::{Arc, Mutex};
+use std::{error::Error, env, fs::File, 
+    sync::{Arc, Mutex}, path::PathBuf};
 use once_cell::sync::OnceCell;
 
 static LOGGER_INITIALIZED: OnceCell<bool> = OnceCell::new();
 
+// AppState
 pub struct AppState {
     pub log_label: Label,
+    pub project_area: Option<gtk::Box>,
+    pub project_path: Option<PathBuf>,
 }
 
 // Init logger
@@ -86,7 +87,11 @@ pub fn setup_logging(state: &Arc<Mutex<AppState>>, debug: bool) -> Result<(), Bo
 // Create states
 pub fn create_state() -> Arc<Mutex<AppState>> {
     let log_label = Label::new(None);
-    Arc::new(Mutex::new(AppState { log_label }))
+    Arc::new(Mutex::new(AppState { 
+        log_label,
+        project_area: None,
+        project_path: None,
+    }))
 }
 
 pub fn update_log_label(state: &Arc<Mutex<AppState>>, message: &str) {

@@ -4,6 +4,7 @@
 use crate::modules::engine::configuration::logger::{log_debug, log_info, AppState};
 use crate::modules::engine::configuration::config::Config;
 use crate::modules::engine::gui::menu_bar::create_menu_bar;
+
 use gtk4 as gtk;
 use gtk::{ gdk::Display, prelude::*, Application, 
     ApplicationWindow, CssProvider, Grid, Label};
@@ -13,33 +14,44 @@ pub fn build_ui(
     app: &Application,
     config: &Config,
     state: &Arc<Mutex<AppState>>,
-) -> ApplicationWindow {
+) -> Arc<ApplicationWindow> {
     log_info(state, "Loading config...");
-    
+
     let (background_color, font_color, font_size) = load_theme(config, state);
-    let _config_path = load_configuration_path(state); 
+    let _config_path = load_configuration_path(state);
     let css = generate_css(&font_color, font_size, &background_color);
-    
+
     apply_css(&css, state);
-    
-    log_info(state, "Building window...");
+
+    log_info(state, "Building UI...");
     let window = create_window(app);
-    
+
+    // Wrap window in Arc
+    let window = Arc::new(window);
+
     // Create the main layout
+    log_info(state, "Hello there, grid...");
     let grid = create_grid();
     window.set_child(Some(&grid));
-    
-    // Create project area
+
+    // Create project area and set it in AppState
+    log_info(state, "Hello there, project area...");
     let project_area = create_project_area();
     project_area.add_css_class("project-area");
-    grid.attach(&project_area, 0, 1, 2, 1); 
-    
+    grid.attach(&project_area, 0, 1, 2, 1);
+
+    {
+        let mut state = state.lock().unwrap();
+        state.project_area = Some(project_area.clone());
+    }
+
     // Create menu bar
-    let menu_bar = create_menu_bar(state);
+    log_info(state, "Hello there, menu bar...");
+    let menu_bar = create_menu_bar(state, &window);
     menu_bar.add_css_class("menu-bar");
     grid.attach(&menu_bar, 0, 0, 2, 1);
-    
-    log_info(state, "Window built successfully.");
+
+    log_info(state, "Build UI successfully.");
     window
 }
 
@@ -55,7 +67,21 @@ fn create_project_area() -> gtk::Box {
 }
 
 // Update project area
-// TODO: creat function
+pub fn update_project_area(state: &Arc<Mutex<AppState>>) {
+    let state = state.lock().unwrap();
+
+    // Retrieve the existing project_area from the AppState
+    if let Some(ref project_area) = state.project_area {
+        
+        while let Some(child) = project_area.first_child() {
+            project_area.remove(&child);
+        }
+
+        // Add new content
+        let label = Label::new(Some("Updated Project Area"));
+        project_area.append(&label);
+    }
+}
 
 // Loads theme configuration 
 fn load_theme(config: &Config, state: &Arc<Mutex<AppState>>) -> (String, String, f32) {
