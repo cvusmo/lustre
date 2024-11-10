@@ -4,9 +4,14 @@
 use fern::Dispatch;
 use gtk::Label;
 use gtk4 as gtk;
-use std::{error::Error, env, fs::File, 
-    sync::{Arc, Mutex}, path::PathBuf};
 use once_cell::sync::OnceCell;
+use std::{
+    env,
+    error::Error,
+    fs::File,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 static LOGGER_INITIALIZED: OnceCell<bool> = OnceCell::new();
 
@@ -20,13 +25,19 @@ pub struct AppState {
 }
 
 // Init logger
-fn initialize_logger(state: &Arc<Mutex<AppState>>, log_file_path: &str, log_level: log::LevelFilter) -> Result<(), Box<dyn Error>> {
+fn initialize_logger(
+    _state: &Arc<Mutex<AppState>>,
+    log_file_path: &str,
+    log_level: log::LevelFilter,
+) -> Result<(), Box<dyn Error>> {
     let log_file_result = File::create(log_file_path)?;
 
     Dispatch::new()
         .format(|out, message, record| {
             let module = record.target().split("::").last().unwrap_or("unknown");
-            let line = record.line().map_or("unknown".to_string(), |l| l.to_string());
+            let line = record
+                .line()
+                .map_or("unknown".to_string(), |l| l.to_string());
             out.finish(format_args!(
                 "[{}] {}, {}:{}",
                 record.level(),
@@ -90,7 +101,7 @@ pub fn setup_logging(state: &Arc<Mutex<AppState>>, debug: bool) -> Result<(), Bo
 // Create states
 pub fn create_state() -> Arc<Mutex<AppState>> {
     let log_label = Label::new(None);
-    Arc::new(Mutex::new(AppState { 
+    Arc::new(Mutex::new(AppState {
         log_label,
         project_area: None,
         project_path: None,
@@ -99,28 +110,32 @@ pub fn create_state() -> Arc<Mutex<AppState>> {
     }))
 }
 
+// Update Log Label
 pub fn update_log_label(state: &Arc<Mutex<AppState>>, message: &str) {
     let state = state.lock().unwrap();
     state.log_label.set_label(message);
 }
 
+// Log Info
 pub fn log_info(state: &Arc<Mutex<AppState>>, message: &str) {
     log::info!("{}", message);
     update_log_label(state, message);
 }
 
+// Log Debug
 pub fn log_debug(state: &Arc<Mutex<AppState>>, message: &str) {
     log::debug!("{}", message);
     update_log_label(state, message);
 }
 
+// Log Warn
 pub fn log_warn(state: &Arc<Mutex<AppState>>, message: &str) {
     log::warn!("{}", message);
     update_log_label(state, message);
 }
 
+// Log Error
 pub fn log_error(state: &Arc<Mutex<AppState>>, message: &str) {
     log::error!("{}", message);
     update_log_label(state, message);
 }
-

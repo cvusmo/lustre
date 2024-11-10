@@ -1,14 +1,20 @@
 // src/modules/engine/gui/window.rs
 // github.com/cvusmo/gameengine
 
-use crate::modules::engine::configuration::logger::{log_debug, log_info, AppState};
 use crate::modules::engine::configuration::config::Config;
+use crate::modules::engine::configuration::logger::{log_debug, log_info, AppState};
 use crate::modules::engine::gui::menu_bar::create_menu_bar;
 use crate::modules::engine::render::template;
 
+use gtk::{
+    gdk::Display, prelude::*, Application, ApplicationWindow, CssProvider, DrawingArea, Grid, Label,
+};
 use gtk4 as gtk;
-use gtk::{gdk::Display, prelude::*, Application, ApplicationWindow, CssProvider, Grid, Label, DrawingArea};
-use std::{env, path::{Path, PathBuf}, sync::{Arc, Mutex}};
+use std::{
+    env,
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex},
+};
 
 pub fn build_ui(
     app: &Application,
@@ -54,8 +60,8 @@ pub fn build_ui(
     rendering_area.add_css_class("render-area");
     grid.attach(&rendering_area, 2, 1, 2, 2);
 
-    // Setup WGPU rendering
-    template::setup_wgpu_rendering(&rendering_area);
+    // Setup Vulkan rendering
+    template::setup_vulkan_rendering(&rendering_area, &window, &state);
 
     // Create menu bar
     log_info(state, "Hello there, menu bar...");
@@ -78,7 +84,7 @@ fn create_project_area() -> gtk::Box {
     project_area
 }
 
-// Loads theme configuration 
+// Loads theme configuration
 fn load_theme(config: &Config, state: &Arc<Mutex<AppState>>) -> (String, String, f32) {
     let background_color = config.theme.background_color.clone();
     log_info(state, &format!("Background color: {}", background_color));
@@ -92,16 +98,19 @@ fn load_theme(config: &Config, state: &Arc<Mutex<AppState>>) -> (String, String,
     (background_color, font_color, font_size)
 }
 
-// Loads the configuration 
+// Loads the configuration
 fn load_configuration_path(state: &Arc<Mutex<AppState>>) -> PathBuf {
     let home_dir = env::var("HOME").unwrap_or_else(|_| String::from("/home/$USER"));
     let config_file = format!("{}/.config/gameengine/gameengine.conf", home_dir);
     let config_path = Path::new(&config_file);
-    log_info(state, &format!("Configuration file path: {}", config_path.display()));
-    config_path.to_path_buf() 
+    log_info(
+        state,
+        &format!("Configuration file path: {}", config_path.display()),
+    );
+    config_path.to_path_buf()
 }
 
-// Generates the CSS string 
+// Generates the CSS string
 fn generate_css(font_color: &str, font_size: f32, background_color: &str) -> String {
     format!(
         "
@@ -139,7 +148,7 @@ fn generate_css(font_color: &str, font_size: f32, background_color: &str) -> Str
 // Applies the generated CSS to the application.
 fn apply_css(css: &str, state: &Arc<Mutex<AppState>>) {
     let provider = CssProvider::new();
-    provider.load_from_data(css); 
+    provider.load_from_data(css);
     log_debug(state, "CSS loaded successfully.");
 
     gtk::style_context_add_provider_for_display(
@@ -155,25 +164,22 @@ fn apply_css(css: &str, state: &Arc<Mutex<AppState>>) {
 fn create_window(app: &Application) -> ApplicationWindow {
     ApplicationWindow::builder()
         .application(app)
-        .title("gameengine")  
+        .title("gameengine")
         .css_classes(vec!["window".to_string()])
         .build()
 }
 
 // Creates a grid layout
 fn create_grid() -> Grid {
-    let grid = Grid::builder()
-        .row_spacing(10)
-        .column_spacing(10)
-        .build();
+    let grid = Grid::builder().row_spacing(10).column_spacing(10).build();
 
     // set grid to expand
     grid.set_vexpand(true);
     grid.set_hexpand(true);
 
     // grid alignment
-    grid.set_halign(gtk::Align::Fill); 
-    grid.set_valign(gtk::Align::Fill); 
+    grid.set_halign(gtk::Align::Fill);
+    grid.set_valign(gtk::Align::Fill);
 
     grid
 }
