@@ -17,6 +17,7 @@ struct App {
     window: Option<Window>,
 }
 
+// ApplicationHandler
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         // Create the window when the application resumes
@@ -26,7 +27,7 @@ impl ApplicationHandler for App {
         self.window = Some(window);
     }
 
-    fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         match event {
             WindowEvent::CloseRequested => {
                 println!("The close button was pressed; stopping");
@@ -59,7 +60,7 @@ pub fn run_event_loop(state: &Arc<Mutex<AppState>>) {
         state,
         "Creating Vulkan instance with required extensions: khr_surface, khr_wayland_surface...",
     );
-    let instance = match Instance::new(
+    let _instance = match Instance::new(
         library,
         InstanceCreateInfo {
             application_name: Some("GameEngine".to_string()),
@@ -77,7 +78,7 @@ pub fn run_event_loop(state: &Arc<Mutex<AppState>>) {
             enabled_extensions: InstanceExtensions {
                 khr_surface: true,
                 khr_wayland_surface: true,
-                ..InstanceExtensions::none()
+                ..InstanceExtensions::empty()
             },
             ..Default::default()
         },
@@ -109,7 +110,7 @@ pub fn run_event_loop(state: &Arc<Mutex<AppState>>) {
 
     // Create the ActiveEventLoop and start the event loop
     log_info(state, "Running event loop...");
-    event_loop.set_control_flow(ControlFlow::Poll); // For games or continuous rendering
+    event_loop.set_control_flow(ControlFlow::Poll);
 
     // Handle potential error from running event loop, assuming run_app might fail.
     if let Err(e) = event_loop.run_app(&mut app) {

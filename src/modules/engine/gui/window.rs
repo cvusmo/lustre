@@ -6,9 +6,7 @@ use crate::modules::engine::configuration::logger::{log_debug, log_info, AppStat
 use crate::modules::engine::gui::menu_bar::create_menu_bar;
 use crate::modules::engine::render::eventhandler::run_event_loop;
 
-use gtk::{
-    gdk::Display, prelude::*, Application, ApplicationWindow, CssProvider, DrawingArea, Grid, Label,
-};
+use gtk::{gdk::Display, prelude::*, Application, ApplicationWindow, CssProvider, Grid, Label};
 use gtk4 as gtk;
 use std::{
     env,
