@@ -6,7 +6,9 @@ use crate::modules::engine::configuration::logger::{log_debug, log_info, AppStat
 use crate::modules::engine::gui::menu_bar::create_menu_bar;
 use crate::modules::engine::render::eventhandler::run_event_loop;
 
-use gtk::{gdk::Display, prelude::*, Application, ApplicationWindow, CssProvider, Grid, Label};
+use gtk::{
+    gdk::Display, prelude::*, Application, ApplicationWindow, CssProvider, DrawingArea, Grid, Label,
+};
 use gtk4 as gtk;
 use std::{
     env,
@@ -27,19 +29,19 @@ pub fn build_ui(
 
     apply_css(&css, state);
 
-    // Create window
+    // Create the main window
     log_info(state, "Creating window UI...");
     let window = create_window(app);
 
     // Wrap window in Arc
     let window = Arc::new(window);
 
-    // Create the main layout
+    // Create main layout grid
     log_info(state, "Creating grid...");
     let grid = create_grid();
     window.set_child(Some(&grid));
 
-    // Create project area and set it in AppState
+    // Add project area and set it in AppState
     log_info(state, "Creating project area...");
     let project_area = create_project_area();
     project_area.add_css_class("project-area");
@@ -50,10 +52,28 @@ pub fn build_ui(
         state.project_area = Some(project_area.clone());
     }
 
-    // Call Vulkan event handler to run the event loop
-    run_event_loop(state);
+    // Create a drawing area for Vulkan
+    log_info(state, "Creating Vulkan drawing area...");
+    let vulkan_area = DrawingArea::new();
+    vulkan_area.set_vexpand(true);
+    vulkan_area.set_hexpand(true);
+    vulkan_area.set_size_request(800, 600); // Set an appropriate size for the render area
+    grid.attach(&vulkan_area, 1, 1, 1, 1);
 
-    // Create menu bar
+    // Connect draw signal to the Vulkan rendering
+    let state_clone = Arc::clone(state);
+    vulkan_area.set_draw_func(move |_, _, width, height| {
+        log_info(
+            &state_clone,
+            &format!(
+                "Drawing Vulkan content... Width: {}, Height: {}",
+                width, height
+            ),
+        );
+        // Code to integrate Vulkan rendering here; handle Vulkan draw calls
+    });
+
+    // Add menu bar
     log_info(state, "Creating menu bar...");
     let menu_bar = create_menu_bar(state, &window, app);
     menu_bar.add_css_class("menu-bar");

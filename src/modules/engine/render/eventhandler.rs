@@ -110,7 +110,12 @@ pub fn run_event_loop(state: &Arc<Mutex<AppState>>) {
 
     // Create the ActiveEventLoop and start the event loop
     log_info(state, "Running event loop...");
-    event_loop.set_control_flow(ControlFlow::Poll);
+    event_loop.set_control_flow(ControlFlow::Wait);
+
+    // Poll: high performance
+    // Wait: CPU efficient
+    // WaitUntil: periodic updates, set frame rate
+    // Exit: terminates instantly
 
     // Handle potential error from running event loop, assuming run_app might fail.
     if let Err(e) = event_loop.run_app(&mut app) {
