@@ -4,7 +4,7 @@
 use crate::modules::engine::configuration::config::Config;
 use crate::modules::engine::configuration::logger::{log_debug, log_info, AppState};
 use crate::modules::engine::gui::menu_bar::create_menu_bar;
-use crate::modules::engine::render::core;
+use crate::modules::engine::render::eventhandler::run_event_loop;
 
 use gtk::{
     gdk::Display, prelude::*, Application, ApplicationWindow, CssProvider, DrawingArea, Grid, Label,
@@ -52,16 +52,8 @@ pub fn build_ui(
         state.project_area = Some(project_area.clone());
     }
 
-    // Create the rendering area and set it in the layout
-    let rendering_area = DrawingArea::new();
-    rendering_area.set_vexpand(true);
-    rendering_area.set_hexpand(true);
-    rendering_area.set_content_width(800);
-    rendering_area.set_content_height(600);
-    rendering_area.add_css_class("render-area");
-    grid.attach(&rendering_area, 2, 1, 2, 2);
-
-    // Setup Vulkan rendering
+    // Call Vulkan event handler to run the event loop
+    run_event_loop(state);
 
     // Create menu bar
     log_info(state, "Creating menu bar...");
@@ -173,13 +165,14 @@ fn create_window(app: &Application) -> ApplicationWindow {
 fn create_grid() -> Grid {
     let grid = Grid::builder().row_spacing(10).column_spacing(10).build();
 
-    // set grid to expand
+    // Set grid to expand
     grid.set_vexpand(true);
     grid.set_hexpand(true);
 
-    // grid alignment
+    // Grid alignment
     grid.set_halign(gtk::Align::Fill);
     grid.set_valign(gtk::Align::Fill);
 
     grid
 }
+

@@ -10,12 +10,10 @@ use vulkano::instance::Instance;
 use vulkano::swapchain::{
     CompositeAlpha, PresentMode, Surface, SurfaceInfo, Swapchain, SwapchainCreateInfo,
 };
-use vulkano::VulkanLibrary;
-use winit::window::Window;
 
 use crate::modules::engine::configuration::logger::{log_info, AppState};
 
-struct VulkanContext {
+pub struct VulkanContext {
     device: Arc<Device>,
     queue: Arc<Queue>,
     swapchain: Arc<Swapchain>,
@@ -24,7 +22,7 @@ struct VulkanContext {
 
 // VulkanContext
 impl VulkanContext {
-    fn new(
+    pub fn new(
         instance: Arc<Instance>,
         surface: Arc<Surface>,
         width: u32,
@@ -155,14 +153,14 @@ impl VulkanContext {
     }
 
     /// Resizes the swapchain when the window size changes
-    pub fn resize(&mut self, new_width: u32, new_height: u32) {
-        println!("Resizing to: {}x{}", new_width, new_height);
+    pub fn resize(&mut self, _new_width: u32, _new_height: u32, state: &Arc<Mutex<AppState>>) {
+        log_info(state, "Resizing to: {}x{}");
         // Handle resize logic here, such as recreating the swapchain with the new dimensions
     }
 
     /// Clean up Vulkan resources
-    pub fn cleanup(&self) {
+    pub fn cleanup(&self, state: &Arc<Mutex<AppState>>) {
         // In the future, Vulkan cleanup logic goes here
-        println!("Cleaning up Vulkan resources...");
+        log_info(state, "Cleaning up Vulkan resources...");
     }
 }
