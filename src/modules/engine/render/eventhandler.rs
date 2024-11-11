@@ -10,6 +10,7 @@ use crate::modules::engine::configuration::logger::{log_error, log_info, AppStat
 use std::sync::{Arc, Mutex};
 use vulkano::instance::{Instance, InstanceCreateInfo, InstanceExtensions};
 use vulkano::swapchain::Surface;
+use vulkano::Version;
 use vulkano::VulkanLibrary;
 
 #[derive(Default)]
@@ -43,6 +44,7 @@ impl ApplicationHandler for App {
     }
 }
 
+// Function to run event loop
 pub fn run_event_loop(state: &Arc<Mutex<AppState>>) {
     // Create Vulkan instance
     log_info(state, "Searching Vulkan library...");
@@ -54,13 +56,28 @@ pub fn run_event_loop(state: &Arc<Mutex<AppState>>) {
         }
     };
 
-    log_info(state, "Creating Vulkan instance...");
+    log_info(
+        state,
+        "Creating Vulkan instance with required extensions: khr_surface, khr_wayland_surface...",
+    );
     let instance = match Instance::new(
         library,
         InstanceCreateInfo {
+            application_name: Some("GameEngine".to_string()),
+            application_version: Version {
+                major: 0,
+                minor: 1,
+                patch: 0,
+            },
+            engine_name: Some("Engine".to_string()),
+            engine_version: Version {
+                major: 0,
+                minor: 1,
+                patch: 0,
+            },
             enabled_extensions: InstanceExtensions {
                 khr_surface: true,
-                khr_wayland_surface: true, // or khr_xcb_surface for X11
+                khr_wayland_surface: true,
                 ..InstanceExtensions::none()
             },
             ..Default::default()
@@ -68,7 +85,13 @@ pub fn run_event_loop(state: &Arc<Mutex<AppState>>) {
     ) {
         Ok(inst) => inst,
         Err(e) => {
-            log_error(state, &format!("Failed to create Vulkan instance: {}", e));
+            log_error(
+                state,
+                &format!(
+                    "Failed to create Vulkan instance: a validation error occurred - {}",
+                    e
+                ),
+            );
             return;
         }
     };
@@ -92,5 +115,7 @@ pub fn run_event_loop(state: &Arc<Mutex<AppState>>) {
     // Handle potential error from running event loop, assuming run_app might fail.
     if let Err(e) = event_loop.run_app(&mut app) {
         log_error(state, &format!("Event loop terminated with error: {}", e));
+    } else {
+        log_info(state, "Event loop has exited successfully.");
     }
 }
