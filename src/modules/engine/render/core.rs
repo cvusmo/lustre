@@ -8,86 +8,145 @@ use vulkano::image::ImageUsage;
 use std::sync::Arc;
 use winit::window::Window;
 
-pub struct VulkanContext {
-    instance: Arc<Instance>,
+use crate::modules::engine::configuration::logger::{log_error, log_info, AppState};
+
+struct VulkanContext {
     device: Arc<Device>,
     queue: Arc<Queue>,
     swapchain: Arc<Swapchain>,
+    images: Vec<Arc<vulkano::image::Image>>,
 }
 
+// VulkanContext
 impl VulkanContext {
-    /// Initialize VulkanContext with basic Vulkan setup
-    pub fn new(window: &Window, width: u32, height: u32) -> Result<Self, Box<dyn std::error::Error>> {
-        // Step 1: Create Vulkan instance
-        let library = VulkanLibrary::new()?;
-        let instance = Instance::new(
-            library,
-            InstanceCreateInfo {
-                enabled_extensions: vulkano::instance::InstanceExtensions {
-                    khr_surface: true,
-                    ..vulkano::instance::InstanceExtensions::empty()
-                },
-                ..Default::default()
-            },
-        )?;
-
-        // Step 2: Create surface for the window
-        let surface = unsafe { vulkano_win::create_surface_from_winit(window, instance.clone())? };
-
-        // Step 3: Select physical device (GPU)
+    fn new(
+        instance: Arc<Instance>,
+        surface: Arc<Surface>,
+        width: u32,
+        height: u32,
+        state: &Arc<Mutex<AppState>>,
+    ) -> Self {
+        // Enumerate the physical devices and pick one based on user preferences.
         let physical_device = instance
-            .enumerate_physical_devices()?
+            .enumerate_physical_devices()
+            .unwrap_or_else(|err| panic!("Couldn't enumerate physical devices: {:?}", err))
             .next()
-            .ok_or("No suitable physical device found")?;
+            .expect("No physical device");
 
-        // Step 4: Create logical device and queue
+        // Log information about the physical device
+        log_info(
+            state,
+            &format!(
+                "Using device: {} (type: {:?})",
+                physical_device.properties().device_name,
+                physical_device.properties().device_type
+            ),
+        );
+
+        // Specify features and extensions required for the device
+        let required_extensions = DeviceExtensions {
+            khr_swapchain: true,
+            ..DeviceExtensions::empty()
+        };
+        let required_features = Features::empty();
+
+        // Ensure that the physical device supports the required extensions
+        let supported_extensions = physical_device.supported_extensions();
+        if !supported_extensions.contains(&required_extensions) {
+            panic!("The physical device does not support the required extensions.");
+        }
+
+        // Find a queue family that supports graphics and presentation
         let queue_family_index = physical_device
             .queue_family_properties()
             .iter()
-            .position(|q| q.queue_flags.graphics && physical_device.surface_support(q.id() as u32, &surface).unwrap_or(false))
-            .ok_or("No suitable queue family found")?;
-        
+            .enumerate()
+            .find(|(index, q)| {
+                q.queue_flags.contains(QueueFlags::GRAPHICS)
+                    && physical_device
+                        .surface_support(*index as u32, &surface)
+                        .unwrap_or(false)
+            })
+            .map(|(index, _)| index as u32)
+            .expect("Couldn't find a suitable queue family that supports graphics.");
+
+        // Create the device and the queue
         let (device, mut queues) = Device::new(
             physical_device.clone(),
             DeviceCreateInfo {
-                enabled_extensions: DeviceExtensions { khr_swapchain: true, ..DeviceExtensions::empty() },
-                queue_create_infos: vec![QueueCreateInfo::family_index(queue_family_index)],
+                queue_create_infos: vec![QueueCreateInfo {
+                    queue_family_index,
+                    queues: vec![0.5],                // Priority of the queue
+                    flags: QueueCreateFlags::empty(), // Sets to empty
+                    ..Default::default()
+                }],
+                enabled_extensions: required_extensions,
+                enabled_features: required_features,
+                physical_devices: vec![physical_device.clone()].into(),
+                private_data_slot_request_count: 0,
                 ..Default::default()
             },
-        )?;
-        
-        let queue = queues.next().ok_or("No queue created")?;
+        )
+        .expect("Failed to create logical device");
 
-        // Step 5: Create swapchain
-        let caps = physical_device.surface_capabilities(&surface, Default::default())?;
-        let format = physical_device.surface_formats(&surface, Default::default())?.first().unwrap().0;
-        let extent = caps.current_extent.unwrap_or([width, height]);
-        let (swapchain, _images) = Swapchain::new(
+        let queue = queues.next().unwrap();
+
+        // Get the surface capabilities
+        let surface_capabilities = physical_device
+            .surface_capabilities(&surface, SurfaceInfo::default())
+            .expect("Failed to get surface capabilities");
+
+        // Determine the image extent to use
+        let image_extent = surface_capabilities
+            .current_extent
+            .unwrap_or([width, height]);
+
+        // Use double-buffering if possible.
+        let min_image_count = match surface_capabilities.max_image_count {
+            None => std::cmp::max(2, surface_capabilities.min_image_count),
+            Some(limit) => std::cmp::min(
+                std::cmp::max(2, surface_capabilities.min_image_count),
+                limit,
+            ),
+        };
+
+        // Preserve the current surface transform
+        let pre_transform = surface_capabilities.current_transform;
+
+        // Use the first available format
+        let (image_format, _) = physical_device
+            .surface_formats(&surface, SurfaceInfo::default())
+            .expect("Failed to get surface formats")[0];
+
+        // Create the swapchain for rendering to the window surface
+        let (swapchain, images) = Swapchain::new(
             device.clone(),
             surface.clone(),
             SwapchainCreateInfo {
-                min_image_count: caps.min_image_count,
-                image_format: Some(format),
-                image_extent: extent,
+                min_image_count,
+                image_format,
+                image_extent,
                 image_usage: ImageUsage::COLOR_ATTACHMENT,
                 composite_alpha: CompositeAlpha::Opaque,
                 present_mode: PresentMode::Fifo,
+                pre_transform,
                 ..Default::default()
             },
-        )?;
+        )
+        .expect("Failed to create swapchain");
 
-        Ok(Self {
-            instance,
+        Self {
             device,
             queue,
             swapchain,
-        })
+            images,
+        }
     }
 
     /// Render function placeholder for drawing frames
     pub fn render(&self) {
         // In the future, frame rendering logic goes here
-        println!("Rendering a frame...");
+        log_info(state, "Rendering a frame...");
     }
 
     /// Resizes the swapchain when the window size changes
