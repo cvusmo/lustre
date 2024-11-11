@@ -175,4 +175,3 @@ fn create_grid() -> Grid {
 
     grid
 }
-

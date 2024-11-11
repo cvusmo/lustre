@@ -1,17 +1,16 @@
 // src/modules/render/eventhandler.rs
 // github.com/cvusmo/gameengine
 
+use crate::modules::engine::configuration::logger::{log_error, log_info, AppState};
+
+use std::sync::{Arc, Mutex};
+use vulkano::instance::{Instance, InstanceCreateInfo, InstanceExtensions};
+use vulkano::Version;
+use vulkano::VulkanLibrary;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Window, WindowId};
-
-use crate::modules::engine::configuration::logger::{log_error, log_info, AppState};
-use std::sync::{Arc, Mutex};
-use vulkano::instance::{Instance, InstanceCreateInfo, InstanceExtensions};
-use vulkano::swapchain::Surface;
-use vulkano::Version;
-use vulkano::VulkanLibrary;
 
 #[derive(Default)]
 struct App {
@@ -119,3 +118,4 @@ pub fn run_event_loop(state: &Arc<Mutex<AppState>>) {
         log_info(state, "Event loop has exited successfully.");
     }
 }
+

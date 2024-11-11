@@ -1,16 +1,16 @@
 // src/main.rs
 // github.com/cvusmo/gameengine
 
-mod modules;
 mod debug;
+mod modules;
 
 use crate::modules::engine::configuration::{
     config::Config,
     logger::{create_state, log_error, log_info, log_warn, setup_logging, AppState},
 };
 
-use crate::modules::engine::gui;
 use crate::debug::debug::enable_debug_mode;
+use crate::modules::engine::gui;
 
 use clap::{Arg, Command};
 use gtk::{glib, prelude::*, Application};
@@ -43,10 +43,15 @@ fn main() -> glib::ExitCode {
     }
 
     // Error handling for executing Lua script
-    if let Err(e) = lua.load(r#"
+    if let Err(e) = lua
+        .load(
+            r#"
         local result = add(3, 4)
         print("Result of addition:", result)
-    "#).exec() {
+    "#,
+        )
+        .exec()
+    {
         eprintln!("Failed to execute Lua script: {}", e);
         return glib::ExitCode::FAILURE;
     }
@@ -85,7 +90,7 @@ fn main() -> glib::ExitCode {
     }
 
     // Handle config file
-    let config_file = matches.get_one::<String>("config").cloned(); 
+    let config_file = matches.get_one::<String>("config").cloned();
     if let Some(file) = &config_file {
         log_info(&state, &format!("Using config file: {}", file));
     }
@@ -100,14 +105,14 @@ fn main() -> glib::ExitCode {
 
 fn run_main(app: &Application, state: &Arc<Mutex<AppState>>, config_file: Option<String>) {
     // Initialize config
-    let config = match Config::check_config(config_file) { 
+    let config = match Config::check_config(config_file) {
         // Pass config_file to check_config
         Ok(config) => config,
         Err(e) => {
             log_error(state, &format!("Failed to load config: {}", e));
             log_warn(state, "Using default configuration due to error.");
             log_info(state, &format!("Logging info check: {}", e));
-            Config::new() 
+            Config::new()
         }
     };
 
@@ -115,3 +120,4 @@ fn run_main(app: &Application, state: &Arc<Mutex<AppState>>, config_file: Option
     let window = gui::window::build_ui(app, &config, state);
     window.present();
 }
+
