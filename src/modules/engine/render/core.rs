@@ -1,14 +1,19 @@
 // src/modules/engine/render/core.rs
 
-use vulkano::device::{Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo};
-use vulkano::instance::{Instance, InstanceCreateInfo};
-use vulkano::swapchain::{Surface, Swapchain, SwapchainCreateInfo, PresentMode, CompositeAlpha};
-use vulkano::VulkanLibrary;
+use std::sync::{Arc, Mutex};
+use vulkano::device::{
+    Device, DeviceCreateInfo, DeviceExtensions, Features, Queue, QueueCreateFlags, QueueCreateInfo,
+    QueueFlags,
+};
 use vulkano::image::ImageUsage;
-use std::sync::Arc;
+use vulkano::instance::Instance;
+use vulkano::swapchain::{
+    CompositeAlpha, PresentMode, Surface, SurfaceInfo, Swapchain, SwapchainCreateInfo,
+};
+use vulkano::VulkanLibrary;
 use winit::window::Window;
 
-use crate::modules::engine::configuration::logger::{log_error, log_info, AppState};
+use crate::modules::engine::configuration::logger::{log_info, AppState};
 
 struct VulkanContext {
     device: Arc<Device>,
@@ -144,7 +149,7 @@ impl VulkanContext {
     }
 
     /// Render function placeholder for drawing frames
-    pub fn render(&self) {
+    pub fn render(&self, state: &Arc<Mutex<AppState>>) {
         // In the future, frame rendering logic goes here
         log_info(state, "Rendering a frame...");
     }
@@ -161,4 +166,3 @@ impl VulkanContext {
         println!("Cleaning up Vulkan resources...");
     }
 }
-

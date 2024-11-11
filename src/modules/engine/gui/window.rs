@@ -4,7 +4,7 @@
 use crate::modules::engine::configuration::config::Config;
 use crate::modules::engine::configuration::logger::{log_debug, log_info, AppState};
 use crate::modules::engine::gui::menu_bar::create_menu_bar;
-use crate::modules::engine::render::template;
+use crate::modules::engine::render::core;
 
 use gtk::{
     gdk::Display, prelude::*, Application, ApplicationWindow, CssProvider, DrawingArea, Grid, Label,
@@ -21,7 +21,7 @@ pub fn build_ui(
     config: &Config,
     state: &Arc<Mutex<AppState>>,
 ) -> Arc<ApplicationWindow> {
-    log_info(state, "Loading config...");
+    log_info(state, "Begin building ui && loading config...");
 
     let (background_color, font_color, font_size) = load_theme(config, state);
     let _config_path = load_configuration_path(state);
@@ -29,19 +29,20 @@ pub fn build_ui(
 
     apply_css(&css, state);
 
-    log_info(state, "Building UI...");
+    // Create window
+    log_info(state, "Creating window UI...");
     let window = create_window(app);
 
     // Wrap window in Arc
     let window = Arc::new(window);
 
     // Create the main layout
-    log_info(state, "Hello there, grid...");
+    log_info(state, "Creating grid...");
     let grid = create_grid();
     window.set_child(Some(&grid));
 
     // Create project area and set it in AppState
-    log_info(state, "Hello there, project area...");
+    log_info(state, "Creating project area...");
     let project_area = create_project_area();
     project_area.add_css_class("project-area");
     grid.attach(&project_area, 0, 1, 2, 1);
@@ -61,10 +62,9 @@ pub fn build_ui(
     grid.attach(&rendering_area, 2, 1, 2, 2);
 
     // Setup Vulkan rendering
-    template::setup_vulkan_rendering(&rendering_area, &window, &state);
 
     // Create menu bar
-    log_info(state, "Hello there, menu bar...");
+    log_info(state, "Creating menu bar...");
     let menu_bar = create_menu_bar(state, &window, app);
     menu_bar.add_css_class("menu-bar");
     grid.attach(&menu_bar, 0, 0, 2, 1);
