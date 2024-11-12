@@ -2,11 +2,11 @@
 // github.com/cvusmo/gameengine
 
 use crate::modules::engine::configuration::logger::{log_error, log_info, AppState};
-use crate::modules::engine::render::vulkan::swapchain_handler::create_swapchain;
-use crate::modules::engine::render::vulkan::vulkan_surface::create_vulkan_surface;
+use crate::modules::render::vulkan::swapchain_handler::create_swapchain;
+use crate::modules::render::vulkan::vulkan_surface::create_vulkan_surface;
 
 use std::sync::{Arc, Mutex};
-use vulkano::device::{Device, DeviceCreateInfo};
+use vulkano::device::{Device, DeviceCreateInfo, DeviceExtensions};
 use vulkano::instance::{Instance, InstanceCreateInfo, InstanceExtensions};
 use vulkano::Version;
 use vulkano::VulkanLibrary;

@@ -4,7 +4,7 @@
 use crate::modules::engine::configuration::config::Config;
 use crate::modules::engine::configuration::logger::{log_debug, log_info, AppState};
 use crate::modules::engine::gui::menu_bar::create_menu_bar;
-use crate::modules::engine::render::vulkan::event_handler::run_event_loop;
+// use crate::modules::render::vulkan::event_handler::run_event_loop;
 
 use gtk::{
     gdk::Display, prelude::*, Application, ApplicationWindow, CssProvider, DrawingArea, Grid, Label,

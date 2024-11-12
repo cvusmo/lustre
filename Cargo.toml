@@ -11,6 +11,8 @@ dirs = "5.0.1"
 fern = "0.7.0"
 gtk4 = "0.9.3"
 gdk4 = "0.9.3"
+gdk4-x11 = "0.9.3"
+gdk4-wayland = "0.9.3"
 glib = "0.20.5"
 log = "0.4.22"
 mlua = { version = "0.10.0", features = ["lua54"] }
