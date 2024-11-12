@@ -1,9 +1,12 @@
-// src/modules/render/eventhandler.rs
+// src/modules/render/vulkan_event_handler.rs
 // github.com/cvusmo/gameengine
 
 use crate::modules::engine::configuration::logger::{log_error, log_info, AppState};
+use crate::modules::engine::render::vulkan::swapchain_handler::create_swapchain;
+use crate::modules::engine::render::vulkan::vulkan_surface::create_vulkan_surface;
 
 use std::sync::{Arc, Mutex};
+use vulkano::device::{Device, DeviceCreateInfo};
 use vulkano::instance::{Instance, InstanceCreateInfo, InstanceExtensions};
 use vulkano::Version;
 use vulkano::VulkanLibrary;
@@ -20,7 +23,6 @@ struct App {
 // ApplicationHandler
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        // Create the window when the application resumes
         let window = event_loop
             .create_window(Window::default_attributes())
             .unwrap();
@@ -46,22 +48,11 @@ impl ApplicationHandler for App {
 
 // Function to run event loop
 pub fn run_event_loop(state: &Arc<Mutex<AppState>>) {
-    // Create Vulkan instance
     log_info(state, "Searching Vulkan library...");
-    let library = match VulkanLibrary::new() {
-        Ok(lib) => lib,
-        Err(e) => {
-            log_error(state, &format!("Failed to load Vulkan library: {}", e));
-            return;
-        }
-    };
+    let library = VulkanLibrary::new().expect("Failed to load Vulkan library");
 
-    log_info(
-        state,
-        "Creating Vulkan instance with required extensions: khr_surface, khr_wayland_surface...",
-    );
-    let _instance = match Instance::new(
-        library,
+    let instance = Instance::new(
+        library.clone(),
         InstanceCreateInfo {
             application_name: Some("GameEngine".to_string()),
             application_version: Version {
@@ -82,46 +73,37 @@ pub fn run_event_loop(state: &Arc<Mutex<AppState>>) {
             },
             ..Default::default()
         },
-    ) {
-        Ok(inst) => inst,
-        Err(e) => {
-            log_error(
-                state,
-                &format!(
-                    "Failed to create Vulkan instance: a validation error occurred - {}",
-                    e
-                ),
-            );
-            return;
-        }
-    };
+    )
+    .expect("Failed to create Vulkan instance");
 
-    // Initialize the Winit event loop and application
     log_info(state, "Initializing Winit event loop...");
-    let event_loop = match EventLoop::new() {
-        Ok(loop_instance) => loop_instance,
-        Err(e) => {
-            log_error(state, &format!("Failed to create event loop: {}", e));
-            return;
-        }
-    };
+    let event_loop = EventLoop::new().expect("Failed to create event loop");
 
     let mut app = App::default();
+    let event_loop_ref = &event_loop;
 
-    // Create the ActiveEventLoop and start the event loop
+    let device = Device::new(
+        instance.clone(),
+        DeviceCreateInfo {
+            enabled_extensions: DeviceExtensions::khr_swapchain,
+            ..Default::default()
+        },
+    )
+    .expect("Failed to create device");
+
+    if let Some(window) = app.window.as_ref() {
+        let surface = create_vulkan_surface(instance.clone(), window);
+        let (swapchain, images) = create_swapchain(device.clone(), surface.clone());
+
+        // You can now use `swapchain` and `images` for rendering
+    }
+
     log_info(state, "Running event loop...");
-    event_loop.set_control_flow(ControlFlow::Wait);
+    event_loop_ref.set_control_flow(ControlFlow::Wait);
 
-    // Poll: high performance
-    // Wait: CPU efficient
-    // WaitUntil: periodic updates, set frame rate
-    // Exit: terminates instantly
-
-    // Handle potential error from running event loop, assuming run_app might fail.
-    if let Err(e) = event_loop.run_app(&mut app) {
+    if let Err(e) = event_loop_ref.run_app(&mut app) {
         log_error(state, &format!("Event loop terminated with error: {}", e));
     } else {
         log_info(state, "Event loop has exited successfully.");
     }
 }
-

@@ -4,7 +4,7 @@
 use crate::modules::engine::configuration::config::Config;
 use crate::modules::engine::configuration::logger::{log_debug, log_info, AppState};
 use crate::modules::engine::gui::menu_bar::create_menu_bar;
-use crate::modules::engine::render::eventhandler::run_event_loop;
+use crate::modules::engine::render::vulkan::event_handler::run_event_loop;
 
 use gtk::{
     gdk::Display, prelude::*, Application, ApplicationWindow, CssProvider, DrawingArea, Grid, Label,
@@ -16,6 +16,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+// Function that builds components for window
 pub fn build_ui(
     app: &Application,
     config: &Config,
@@ -57,7 +58,7 @@ pub fn build_ui(
     let vulkan_area = DrawingArea::new();
     vulkan_area.set_vexpand(true);
     vulkan_area.set_hexpand(true);
-    vulkan_area.set_size_request(800, 600); // Set an appropriate size for the render area
+    vulkan_area.set_size_request(800, 600);
     grid.attach(&vulkan_area, 1, 1, 1, 1);
 
     // Connect draw signal to the Vulkan rendering
@@ -71,6 +72,7 @@ pub fn build_ui(
             ),
         );
         // Code to integrate Vulkan rendering here; handle Vulkan draw calls
+        // run_event_loop(&state_clone);
     });
 
     // Add menu bar
