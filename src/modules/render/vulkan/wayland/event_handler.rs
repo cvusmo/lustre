@@ -1,18 +1,19 @@
-// src/modules/render/vulkan_event_handler.rs
+// src/modules/render/vulkan/event_handler.rs
 // github.com/cvusmo/gameengine
 
-use crate::modules::engine::configuration::logger::{log_error, log_info, AppState};
-use crate::modules::render::vulkan::swapchain_handler::create_swapchain;
-use crate::modules::render::vulkan::vulkan_surface::create_vulkan_surface;
+use crate::modules::engine::configuration::logger::{log_info, AppState};
+use crate::modules::render::vulkan::wayland::swapchain_handler::create_swapchain;
+use crate::modules::render::vulkan::wayland::vulkan_surface::create_vulkan_surface;
 
 use std::sync::{Arc, Mutex};
-use vulkano::device::{Device, DeviceCreateInfo, DeviceExtensions};
+use vulkano::device::physical::PhysicalDevice;
+use vulkano::device::{Device, DeviceCreateInfo, DeviceExtensions, QueueCreateInfo};
 use vulkano::instance::{Instance, InstanceCreateInfo, InstanceExtensions};
 use vulkano::Version;
 use vulkano::VulkanLibrary;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
-use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::{Window, WindowId};
 
 #[derive(Default)]
@@ -76,34 +77,56 @@ pub fn run_event_loop(state: &Arc<Mutex<AppState>>) {
     )
     .expect("Failed to create Vulkan instance");
 
-    log_info(state, "Initializing Winit event loop...");
-    let event_loop = EventLoop::new().expect("Failed to create event loop");
+    log_info(state, "Selecting physical device...");
+    let physical_device = PhysicalDevice::enumerate(&instance)
+        .next()
+        .expect("No physical device available");
 
-    let mut app = App::default();
-    let event_loop_ref = &event_loop;
+    log_info(
+        state,
+        &format!(
+            "Selected physical device: {}",
+            physical_device.properties().device_name
+        ),
+    );
 
-    let device = Device::new(
-        instance.clone(),
+    let device_extensions = DeviceExtensions {
+        khr_swapchain: true,
+        ..DeviceExtensions::empty()
+    };
+
+    let (device, mut queues) = Device::new(
+        Arc::new(physical_device),
         DeviceCreateInfo {
-            enabled_extensions: DeviceExtensions::khr_swapchain,
+            enabled_extensions: device_extensions,
+            queue_create_infos: vec![QueueCreateInfo::default()],
             ..Default::default()
         },
     )
     .expect("Failed to create device");
 
-    if let Some(window) = app.window.as_ref() {
-        let surface = create_vulkan_surface(instance.clone(), window);
-        let (swapchain, images) = create_swapchain(device.clone(), surface.clone());
+    let queue = queues.next().expect("Failed to get queue");
 
-        // You can now use `swapchain` and `images` for rendering
-    }
+    // Initialize event loop and app
+    let event_loop = EventLoop::new().expect("Failed to create event loop");
+    let mut app = App::default();
 
     log_info(state, "Running event loop...");
-    event_loop_ref.set_control_flow(ControlFlow::Wait);
+    event_loop.run(move |event, event_loop| {
+        match event {
+            winit::event::Event::Resumed => app.resumed(event_loop),
+            winit::event::Event::WindowEvent { window_id, event } => {
+                app.window_event(event_loop, window_id, event)
+            }
+            _ => (),
+        }
 
-    if let Err(e) = event_loop_ref.run_app(&mut app) {
-        log_error(state, &format!("Event loop terminated with error: {}", e));
-    } else {
-        log_info(state, "Event loop has exited successfully.");
-    }
+        if let Some(window) = app.window.as_ref() {
+            let surface = create_vulkan_surface(instance.clone(), window);
+            let (swapchain, images) =
+                create_swapchain(device.clone(), surface.clone(), queue.clone());
+
+            // Use `swapchain` and `images` for rendering
+        }
+    });
 }
