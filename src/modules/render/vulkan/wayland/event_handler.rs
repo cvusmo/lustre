@@ -1,9 +1,9 @@
-// src/modules/render/vulkan/event_handler.rs
+// src/modules/render/vulkan/wayland/event_handler.rs
 // github.com/cvusmo/gameengine
 
 use crate::modules::engine::configuration::logger::{log_info, AppState};
 use crate::modules::render::vulkan::wayland::swapchain_handler::create_swapchain;
-use crate::modules::render::vulkan::wayland::vulkan_surface::create_vulkan_surface;
+use crate::modules::render::vulkan::wayland::vulkan_surface_wayland::create_vulkan_surface_wayland;
 
 use std::sync::{Arc, Mutex};
 use vulkano::device::physical::PhysicalDevice;
