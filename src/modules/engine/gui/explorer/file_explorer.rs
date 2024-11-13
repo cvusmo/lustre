@@ -1,21 +1,21 @@
 // src/modules/engine/gui/explorer/file_explorer.rs
 // github.com/cvusmo/gameengine
 
-use crate::modules::engine::configuration::logger::*;
 use crate::modules::engine::configuration::logger::AppState;
-use crate::modules::engine::gui::utils::*; 
+use crate::modules::engine::configuration::logger::*;
+use crate::modules::engine::gui::utils::*;
+use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::{FileChooserAction, FileChooserDialog, ResponseType};
-use std::sync::{Arc, Mutex};
-use gtk4::glib;
 use std::fs;
+use std::sync::{Arc, Mutex};
 
 // Unified function to open a file and load it into the project area
 pub fn open_file(state: Arc<Mutex<AppState>>, parent: &impl IsA<gtk4::Window>) {
     let dialog = FileChooserDialog::builder()
-        .title("Select a Text File")
-        .transient_for(parent)  
-        .modal(true)            
+        .title("Select a Project File")
+        .transient_for(parent)
+        .modal(true)
         .action(FileChooserAction::Open)
         .build();
 
@@ -25,8 +25,8 @@ pub fn open_file(state: Arc<Mutex<AppState>>, parent: &impl IsA<gtk4::Window>) {
 
     // Add a filter to allow only text files
     let filter = gtk4::FileFilter::new();
-    filter.add_pattern("*.txt");
-    filter.set_name(Some("Text Files"));
+    filter.add_pattern("*.lua");
+    filter.set_name(Some("Lua Files"));
     dialog.add_filter(&filter);
 
     // Add response buttons
@@ -38,7 +38,7 @@ pub fn open_file(state: Arc<Mutex<AppState>>, parent: &impl IsA<gtk4::Window>) {
         if response == ResponseType::Accept {
             if let Some(file) = dialog.file() {
                 let file_path = file.path().expect("Failed to get file path");
-                
+
                 // Clone the state to use in async operation
                 let state_clone_inner = Arc::clone(&state_clone);
 
@@ -53,12 +53,18 @@ pub fn open_file(state: Arc<Mutex<AppState>>, parent: &impl IsA<gtk4::Window>) {
 
                             // Use the utility function to load the project content
                             load_project_content(&state_clone_inner, &content);
-                            
+
                             // Log information
-                            log_info(&state_clone_inner, &format!("Project path set to: {}", file_path.display()));
+                            log_info(
+                                &state_clone_inner,
+                                &format!("Project path set to: {}", file_path.display()),
+                            );
                         }
                         Err(err) => {
-                            log_error(&state_clone_inner, &format!("Failed to read file content: {}", err));
+                            log_error(
+                                &state_clone_inner,
+                                &format!("Failed to read file content: {}", err),
+                            );
                         }
                     }
                 });
@@ -69,4 +75,3 @@ pub fn open_file(state: Arc<Mutex<AppState>>, parent: &impl IsA<gtk4::Window>) {
 
     dialog.show();
 }
-

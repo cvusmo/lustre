@@ -1,17 +1,24 @@
 // src/modules/engine/gui/menu_bar.rs
 // github.com/cvusmo/gameengine
 
-use crate::modules::engine::configuration::logger::*;
 use crate::modules::engine::configuration::logger::AppState;
-use crate::modules::engine::gui::new_project::*;
+use crate::modules::engine::configuration::logger::*;
 use crate::modules::engine::gui::explorer::file_explorer::*;
-use crate::modules::engine::gui::utils::{save_file, save_as_file, handle_exit};
+use crate::modules::engine::gui::new_project::*;
+use crate::modules::engine::gui::utils::{handle_exit, run_lua_script, save_as_file, save_file};
 
 use gtk4::prelude::*;
-use gtk4::{Align, ApplicationWindow, Button, Box as GtkBox, Label, MenuButton, Orientation, Popover, Application};
+use gtk4::{
+    Align, Application, ApplicationWindow, Box as GtkBox, Button, Label, MenuButton, Orientation,
+    Popover,
+};
 use std::sync::{Arc, Mutex};
 
-pub fn create_menu_bar(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWindow>, app: &Application) -> GtkBox {
+pub fn create_menu_bar(
+    state: &Arc<Mutex<AppState>>,
+    parent: &Arc<ApplicationWindow>,
+    app: &Application,
+) -> GtkBox {
     log_info(state, "Creating menu bar...");
 
     // Create horizontal menu bar container
@@ -20,9 +27,7 @@ pub fn create_menu_bar(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWin
     menu_bar.add_css_class("menu-bar");
 
     // File Button
-    let file_button = MenuButton::builder()
-        .label("File")
-        .build();
+    let file_button = MenuButton::builder().label("File").build();
     file_button.add_css_class("menu-button");
     let file_popover = Popover::new();
     let file_box = GtkBox::new(Orientation::Vertical, 5);
@@ -85,9 +90,7 @@ pub fn create_menu_bar(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWin
     file_button.set_popover(Some(&file_popover));
 
     // Edit button
-    let edit_button = MenuButton::builder()
-        .label("Edit")
-        .build();
+    let edit_button = MenuButton::builder().label("Edit").build();
     edit_button.add_css_class("menu-button");
     let edit_popover = Popover::new();
     let edit_box = GtkBox::new(Orientation::Vertical, 5);
@@ -97,11 +100,30 @@ pub fn create_menu_bar(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWin
     edit_popover.set_child(Some(&edit_box));
     edit_button.set_popover(Some(&edit_popover));
 
+    // Project Button
+    let project_button = MenuButton::builder().label("Project").build();
+    project_button.add_css_class("menu-button");
+    let project_popover = Popover::new();
+    let project_box = GtkBox::new(Orientation::Vertical, 5);
+
+    // Compile project button
+    let compile_button = Button::with_label("Compile");
+    project_box.append(&compile_button);
+    let state_clone_compile = Arc::clone(state);
+    compile_button.connect_clicked(move |_| {
+        log_info(&state_clone_compile, "Compile button clicked.");
+        run_lua_script(&state_clone_compile);
+        log_info(&state_clone_compile, "Project compiling finished.");
+    });
+
+    project_popover.set_child(Some(&project_box));
+    project_button.set_popover(Some(&project_popover));
+
     // Add buttons to menu bar
     menu_bar.append(&file_button);
     menu_bar.append(&edit_button);
+    menu_bar.append(&project_button);
 
     log_info(state, "Menu bar created successfully.");
     menu_bar
 }
-

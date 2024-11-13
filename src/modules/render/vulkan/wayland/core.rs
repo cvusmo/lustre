@@ -6,12 +6,50 @@ use vulkano::device::{
     QueueFlags,
 };
 use vulkano::image::ImageUsage;
-use vulkano::instance::Instance;
+use vulkano::instance::{Instance, InstanceCreateInfo, InstanceExtensions};
 use vulkano::swapchain::{
     CompositeAlpha, PresentMode, Surface, SurfaceInfo, Swapchain, SwapchainCreateInfo,
 };
+use vulkano::VulkanLibrary;
+use winit::dpi::LogicalSize;
+use winit::event::{Event, WindowEvent};
+use winit::event_loop::EventLoop;
+use winit::window::{Window, WindowBuilder};
 
 use crate::modules::engine::configuration::logger::{log_info, AppState};
+
+fn main() -> Result<()> {
+    // Window
+
+    let event_loop = EventLoop::new()?;
+    let window = WindowBuilder::new()
+        .with_title("Vulkan Tutorial (Rust)")
+        .with_inner_size(LogicalSize::new(1024, 768))
+        .build(&event_loop)?;
+
+    // App
+
+    let mut app = unsafe { App::create(&window)? };
+    event_loop.run(move |event, elwt| {
+        match event {
+            // Request a redraw when all events were processed.
+            Event::AboutToWait => window.request_redraw(),
+            Event::WindowEvent { event, .. } => match event {
+                // Render a frame 
+                WindowEvent::RedrawRequested if !elwt.exiting() => unsafe { app.render(&window) }.unwrap(),
+                // Destroy our Vulkan app.
+                WindowEvent::CloseRequested => {
+                    elwt.exit();
+                    unsafe { app.destroy(); }
+                }
+                _ => {}
+            }
+            _ => {}
+        }
+    })?;
+
+    Ok(())
+}
 
 pub struct VulkanContext {
     device: Arc<Device>,
@@ -23,26 +61,64 @@ pub struct VulkanContext {
 // VulkanContext
 impl VulkanContext {
     pub fn new(
-        instance: Arc<Instance>,
         surface: Arc<Surface>,
         width: u32,
         height: u32,
         state: &Arc<Mutex<AppState>>,
     ) -> Self {
+        // Create library
+        let library = VulkanLibrary::new()
+            .unwrap_or_else(|err| panic!("Couldn't load Vulkan library: {:?}", err));
+
+        // Create layers
+        let layers: vec<_> = library
+            .layer_properties()
+            .unwrap_or_else(|err| panic!("Failed to retrieve Vulkan layer properties: {:?}", err))
+            .filter(|l| l.name() == "gameengine_layer")
+            .collect();
+
+        // Create instance
+        let instance = Arc::new(
+            Instance::new(library, Default::default()).expect("Failed to create Vulkan instance"),
+        );
+
         // Enumerate the physical devices and pick one based on user preferences.
         let physical_device = instance
             .enumerate_physical_devices()
             .unwrap_or_else(|err| panic!("Couldn't enumerate physical devices: {:?}", err))
-            .next()
-            .expect("No physical device");
+            .filter(|device| {
+                // Check if the device has sufficient VRAM (4GB or more)
+                let memory_properties = device.memory_properties();
+                let vram_size = memory_properties
+                    .memory_heaps
+                    .iter()
+                    .filter(|l| l.description().contains("foo")
+                    .map(|heap| heap.size)
+                    .max()
+                    .unwrap_or(0);
+
+                // Require at least 4GB of VRAM
+                vram_size >= 4 * 1024 * 1024 * 1024
+            })
+            .next() // Select the first available device that meets the criteria
+            .expect("No suitable physical device found with at least 4GB of VRAM.");
 
         // Log information about the physical device
         log_info(
             state,
             &format!(
-                "Using device: {} (type: {:?})",
+                "Using device: {} (type: {:?}, VRAM: {} GB)",
                 physical_device.properties().device_name,
-                physical_device.properties().device_type
+                physical_device.properties().device_type,
+                physical_device
+                    .memory_properties()
+                    .memory_heaps
+                    .iter()
+                    .filter()
+                    .map(|heap| heap.size)
+                    .max()
+                    .unwrap_or(0)
+                    / (1024 * 1024 * 1024) // Convert bytes to GB
             ),
         );
 

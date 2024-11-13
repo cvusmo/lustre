@@ -20,6 +20,7 @@ use std::sync::{Arc, Mutex};
 
 const APP_ID: &str = "org.cvusmo.gameengine";
 
+// Main function
 fn main() -> glib::ExitCode {
     if let Err(e) = gtk::init() {
         eprintln!("Failed to initialize GTK: {}", e);
@@ -71,7 +72,7 @@ fn main() -> glib::ExitCode {
                 .short('c')
                 .long("config")
                 .help("Specifies a custom config file")
-                .value_name("FILE")
+                .value_name("gameengine.conf")
                 .num_args(1),
         )
         .get_matches();
@@ -103,6 +104,7 @@ fn main() -> glib::ExitCode {
     app.run()
 }
 
+// Function run_main
 fn run_main(app: &Application, state: &Arc<Mutex<AppState>>, config_file: Option<String>) {
     // Initialize config
     let config = match Config::check_config(config_file) {
@@ -120,4 +122,3 @@ fn run_main(app: &Application, state: &Arc<Mutex<AppState>>, config_file: Option
     let window = gui::window::build_ui(app, &config, state);
     window.present();
 }
-

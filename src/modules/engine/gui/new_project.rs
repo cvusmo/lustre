@@ -1,10 +1,10 @@
 // src/modules/engine/gui/new_project.rs
 // github.com/cvusmo/gameengine
 
-use crate::modules::engine::gui::utils::{clear_project_area, load_project_content}; 
+use crate::modules::engine::configuration::logger::{log_error, log_info, AppState};
+use crate::modules::engine::gui::utils::{clear_project_area, load_project_content};
 use gtk4::prelude::*;
-use gtk4::{ApplicationWindow, Button, Dialog, Box as GtkBox, Label, Orientation};
-use crate::modules::engine::configuration::logger::{log_info, log_error, AppState};
+use gtk4::{ApplicationWindow, Box as GtkBox, Button, Dialog, Label, Orientation};
 use std::sync::{Arc, Mutex};
 use std::{env, fs, path::PathBuf};
 
@@ -14,7 +14,7 @@ pub fn open_new_project_dialog(state: &Arc<Mutex<AppState>>, parent: &Arc<Applic
 
     // Create the dialog for "New Project"
     let dialog = Dialog::builder()
-        .transient_for(parent.as_ref()) 
+        .transient_for(parent.as_ref())
         .modal(true)
         .title("New Project")
         .build();
@@ -43,7 +43,7 @@ pub fn open_new_project_dialog(state: &Arc<Mutex<AppState>>, parent: &Arc<Applic
         });
     }
 
-    dialog.show(); 
+    dialog.show();
 }
 
 // Function to update the project area with a new text project
@@ -53,7 +53,7 @@ fn update_new_project(state: &Arc<Mutex<AppState>>) {
     // Set the default save path using the HOME environment variable
     let home_dir = env::var("HOME").expect("Failed to read HOME environment variable");
     let default_project_dir = PathBuf::from(format!("{}/gameengine/projects", home_dir));
-    let default_project_file = default_project_dir.join("new_project.txt");
+    let default_project_file = default_project_dir.join("new_project.lua");
 
     // Create directory if it doesn't exist
     if let Err(e) = fs::create_dir_all(&default_project_dir) {
@@ -67,7 +67,10 @@ fn update_new_project(state: &Arc<Mutex<AppState>>) {
     // Create default file if it doesn't exist
     if !default_project_file.exists() {
         if let Err(e) = fs::write(&default_project_file, "") {
-            log_error(state, &format!("Failed to create default project file: {}", e));
+            log_error(
+                state,
+                &format!("Failed to create default project file: {}", e),
+            );
             return;
         }
     }
