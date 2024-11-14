@@ -4,6 +4,7 @@
 use crate::modules::engine::configuration::config::Config;
 use crate::modules::engine::configuration::logger::{log_debug, log_info, AppState};
 use crate::modules::engine::gui::menu_bar::create_menu_bar;
+use crate::modules::engine::gui::utils::load_project_area;
 
 use gtk::{
     gdk::Display, prelude::*, Application, ApplicationWindow, CssProvider, DrawingArea, Grid, Label,
@@ -194,4 +195,3 @@ fn create_grid() -> Grid {
 
     grid
 }
-

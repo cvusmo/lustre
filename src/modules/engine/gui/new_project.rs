@@ -2,7 +2,7 @@
 // github.com/cvusmo/gameengine
 
 use crate::modules::engine::configuration::logger::{log_error, log_info, AppState};
-use crate::modules::engine::gui::utils::{clear_project_area, load_project_content};
+use crate::modules::engine::gui::utils::{clear_project_area, load_project_area};
 use gtk4::prelude::*;
 use gtk4::{ApplicationWindow, Box as GtkBox, Button, Dialog, Label, Orientation};
 use std::sync::{Arc, Mutex};
@@ -84,6 +84,6 @@ fn update_new_project(state: &Arc<Mutex<AppState>>) {
         clear_project_area(&project_area);
 
         // Load empty content into the project area using the utility function
-        load_project_content(state, "");
+        load_project_area(state, "");
     }
 }

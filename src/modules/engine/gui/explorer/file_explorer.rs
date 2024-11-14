@@ -3,7 +3,7 @@
 
 use crate::modules::engine::configuration::logger::AppState;
 use crate::modules::engine::configuration::logger::*;
-use crate::modules::engine::gui::utils::*;
+use crate::modules::engine::gui::utils::load_project_area;
 use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::{FileChooserAction, FileChooserDialog, ResponseType};
@@ -52,7 +52,7 @@ pub fn open_file(state: Arc<Mutex<AppState>>, parent: &impl IsA<gtk4::Window>) {
                             }
 
                             // Use the utility function to load the project content
-                            load_project_content(&state_clone_inner, &content);
+                            load_project_area(&state_clone_inner, &content);
 
                             // Log information
                             log_info(

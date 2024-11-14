@@ -2,26 +2,25 @@
 // github.com/cvusmo/gameengine
 
 use crate::modules::engine::configuration::logger::{log_error, log_info, AppState};
+use crate::modules::engine::gui::editor::lua_editor::create_lua_editor;
 use gtk4::prelude::*;
-use gtk4::WrapMode::Word;
 use gtk4::{
     Application, ApplicationWindow, Box as GtkBox, ButtonsType, FileChooserAction,
-    FileChooserDialog, MessageDialog, MessageType, ResponseType, ScrolledWindow, TextBuffer,
-    TextView,
+    FileChooserDialog, MessageDialog, MessageType, ResponseType, TextView,
 };
 use mlua::prelude::*;
 use std::fs;
 use std::sync::{Arc, Mutex};
 
-/// Clears the contents of the given project area.
+// Clears the contents of the given project area.
 pub fn clear_project_area(project_area: &GtkBox) {
     while let Some(child) = project_area.first_child() {
         project_area.remove(&child);
     }
 }
 
-/// Loads content into the project area by creating a new TextView and appending it.
-pub fn load_project_content(state: &Arc<Mutex<AppState>>, content: &str) {
+// Loads content into the project area by creating a new TextView and appending it.
+pub fn load_project_area(state: &Arc<Mutex<AppState>>, content: &str) {
     let state_lock = state.lock().unwrap();
 
     // Clone the `project_area` and release the lock on state before making mutable changes
@@ -32,35 +31,17 @@ pub fn load_project_content(state: &Arc<Mutex<AppState>>, content: &str) {
         // Clear the previous content
         clear_project_area(&project_area);
 
-        // Create text_buffer
-        let text_buffer = TextBuffer::new(None);
-        text_buffer.set_text(content);
-
-        // Create a new TextView with the provided content
-        let text_view = TextView::with_buffer(&text_buffer);
-        // let text_view = TextView::new();
-        text_view.set_editable(true);
-        text_view.set_wrap_mode(Word);
-
-        // Clear buffer
-        text_view.buffer().set_text("");
-        text_view.buffer().set_text(content);
-
-        let scrolled_window = ScrolledWindow::new();
-        scrolled_window.set_vexpand(true);
-        scrolled_window.set_hexpand(true);
-        scrolled_window.set_min_content_width(400);
-        scrolled_window.set_min_content_height(300);
-        scrolled_window.set_child(Some(&text_view));
-        scrolled_window.set_policy(gtk4::PolicyType::Automatic, gtk4::PolicyType::Automatic);
+        // Create a new lua editor
+        let lua_editor = create_lua_editor(content);
 
         // Append scrolled window to the project area
-        project_area.append(&scrolled_window);
+        project_area.append(&lua_editor);
         project_area.show();
 
         // Re-lock the state to update `text_view`
         if let Ok(mut state_lock) = state.lock() {
-            state_lock.text_view = Some(text_view);
+            state_lock.text_view =
+                Some(lua_editor.child().unwrap().downcast::<TextView>().unwrap());
             state_lock.is_modified = false;
         }
     } else {
@@ -210,48 +191,14 @@ pub fn handle_exit(state: Arc<Mutex<AppState>>, app: &Application) {
     //}
 }
 
-// Runs lua script
-pub fn run_lua_script(state: &Arc<Mutex<AppState>>) {
-    log_info(state, "Running lua script...");
-
-    let script_path = {
-        // Lock state, read Lua script content, then drop lock
-        let state_lock = state.lock().unwrap();
-        if let Some(ref path) = state_lock.project_path {
-            path.clone()
-        } else {
-            log_error(
-                state,
-                "No project file is open. Please open or create a new project.",
-            );
-            return;
-        }
-    };
-
-    // Read lua script from file
-    let script_content = match fs::read_to_string(&script_path) {
-        Ok(content) => content,
-        Err(err) => {
-            log_error(
-                state,
-                &format!("Failed to read lua script from file: {}", err),
-            );
-            return;
-        }
-    };
-
-    // Create a new lua instance
+// Helper function to execute lua script
+pub fn execute_lua_script(state: &Arc<Mutex<AppState>>, script_content: &str) {
+    // Create new lua instance
     let lua = Lua::new();
 
-    // Load and execute lua script
-    match lua.load(&script_content).exec() {
-        Ok(_) => log_info(
-            state,
-            &format!(
-                "Lua script '{}' compiled and executed successfully.",
-                script_path.display()
-            ),
-        ),
-        Err(err) => log_error(state, &format!("Failed to execute lua script: {}", err)),
+    // Load and execute Lua script
+    match lua.load(script_content).exec() {
+        Ok(_) => log_info(state, "Lua script compiled and executed successfuly."),
+        Err(err) => log_error(state, &format!("Failed to execute Lua script: {:?}", err)),
     }
 }

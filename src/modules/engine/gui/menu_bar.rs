@@ -3,9 +3,10 @@
 
 use crate::modules::engine::configuration::logger::AppState;
 use crate::modules::engine::configuration::logger::*;
+use crate::modules::engine::gui::editor::lua_editor::run_lua_from_editor;
 use crate::modules::engine::gui::explorer::file_explorer::*;
 use crate::modules::engine::gui::new_project::*;
-use crate::modules::engine::gui::utils::{handle_exit, run_lua_script, save_as_file, save_file};
+use crate::modules::engine::gui::utils::{handle_exit, save_as_file, save_file};
 
 use gtk4::prelude::*;
 use gtk4::{
@@ -112,7 +113,8 @@ pub fn create_menu_bar(
     let state_clone_compile = Arc::clone(state);
     compile_button.connect_clicked(move |_| {
         log_info(&state_clone_compile, "Compile button clicked.");
-        run_lua_script(&state_clone_compile);
+        //run_lua_script(&state_clone_compile);
+        run_lua_from_editor(&state_clone_compile);
         log_info(&state_clone_compile, "Project compiling finished.");
     });
 
