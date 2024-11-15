@@ -1,54 +1,15 @@
 //src/modules/engine/gui/editor/lua_editor.rs
 
 use crate::modules::engine::configuration::logger::{log_error, log_info, AppState};
-use crate::modules::engine::gui::utils::execute_lua_script;
+use crate::modules::engine::gui::utils::{create_text_editor, execute_lua_script};
 use gtk4::prelude::*;
-use gtk4::PolicyType::Automatic;
-use gtk4::WrapMode::Word;
-use gtk4::{ScrolledWindow, TextBuffer, TextView};
+use gtk4::ScrolledWindow;
 use std::fs;
 use std::sync::{Arc, Mutex};
 
 // Create lua editor
-pub fn create_lua_editor(content: &str, state: Arc<Mutex<AppState>>) -> ScrolledWindow {
-    // Create TextBuffer
-    let text_buffer = TextBuffer::new(None);
-    text_buffer.set_text(content);
-    text_buffer.set_enable_undo(true);
-
-    // Keybinding for saving (ctrl + s)
-    // TODO: add keybinding functionality
-
-    // Create Textview with TextBuffer
-    let text_view = TextView::with_buffer(&text_buffer);
-    text_view.set_editable(true);
-    text_view.set_wrap_mode(Word);
-
-    // Signal to track changes
-    {
-        let state_clone = Arc::clone(&state);
-        text_buffer.connect_changed(move |_| {
-            let mut state_lock = state_clone.lock().unwrap();
-            state_lock.is_modified = true;
-        });
-    }
-
-    // Store TextView in AppState
-    {
-        let mut state_lock = state.lock().unwrap();
-        state_lock.text_view = Some(text_view.clone());
-    }
-
-    // Create ScrolledWindow
-    let scrolled_window = ScrolledWindow::new();
-    scrolled_window.set_vexpand(true);
-    scrolled_window.set_hexpand(true);
-    scrolled_window.set_min_content_width(400);
-    scrolled_window.set_min_content_height(300);
-    scrolled_window.set_child(Some(&text_view));
-    scrolled_window.set_policy(Automatic, Automatic);
-
-    scrolled_window
+pub fn create_lua_editor(content: &str, state: &Arc<Mutex<AppState>>) -> ScrolledWindow {
+    create_text_editor(content, state)
 }
 
 // Run lua script from editor

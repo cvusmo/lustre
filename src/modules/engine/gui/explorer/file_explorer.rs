@@ -3,6 +3,7 @@
 
 use crate::modules::engine::configuration::logger::AppState;
 use crate::modules::engine::configuration::logger::*;
+use crate::modules::engine::gui::editor::lua_editor::create_lua_editor;
 use crate::modules::engine::gui::utils::load_project_area;
 use gtk4::glib;
 use gtk4::prelude::*;
@@ -53,7 +54,7 @@ pub fn open_file(state: Arc<Mutex<AppState>>, parent: &impl IsA<gtk4::Window>) {
                             }
 
                             // Load project area
-                            load_project_area(&state_clone_inner, &content);
+                            load_project_area(&state_clone_inner, &content, create_lua_editor);
 
                             // Log information
                             log_info(

@@ -2,14 +2,71 @@
 // github.com/cvusmo/gameengine
 
 use crate::modules::engine::configuration::logger::{log_error, log_info, AppState};
-use crate::modules::engine::gui::editor::lua_editor::create_lua_editor;
 use gtk4::prelude::*;
+use gtk4::WrapMode::Word;
 use gtk4::{
-    Application, ApplicationWindow, Box as GtkBox, Button, ButtonsType, Dialog, FileChooserAction,
-    FileChooserDialog, Label, MessageDialog, MessageType, Orientation, ResponseType, TextView,
+    Application, ApplicationWindow, Box as GtkBox, ButtonsType, FileChooserAction,
+    FileChooserDialog, MessageDialog, MessageType, PolicyType::Automatic, ResponseType,
+    ScrolledWindow, TextBuffer, TextView,
 };
+use std::fs;
 use std::sync::{Arc, Mutex};
-use std::{env, fs, path::PathBuf};
+
+// Creates generic text editor (TextView inside of ScrolledWindow)
+pub fn create_text_editor(content: &str, state: &Arc<Mutex<AppState>>) -> ScrolledWindow {
+    // Create TextBuffer
+    let text_buffer = TextBuffer::new(None);
+    text_buffer.set_text(content);
+    text_buffer.set_enable_undo(true);
+
+    // Create TextView with TextBuffer
+    let text_view = TextView::with_buffer(&text_buffer);
+    text_view.set_editable(true);
+    text_view.set_focusable(true);
+    text_view.set_wrap_mode(Word);
+    text_view.set_visible(true);
+    text_view.show();
+
+    log_info(
+        state,
+        "TextView created and set to be editable and focusable.",
+    );
+
+    // Signal to track changes in buffer
+    {
+        let state_clone = Arc::clone(state);
+        text_buffer.connect_changed(move |_| {
+            let mut state_lock = state_clone.lock().unwrap();
+            state_lock.is_modified = true;
+            log_info(&state_clone, "TextView content changed.");
+        });
+    }
+
+    // Store TextView in AppState
+    {
+        let mut state_lock = state.lock().unwrap();
+        state_lock.text_view = Some(text_view.clone());
+    }
+
+    // Create ScrolledWindow and add TextView
+    let scrolled_window = ScrolledWindow::new();
+    scrolled_window.set_vexpand(true);
+    scrolled_window.set_hexpand(true);
+    scrolled_window.set_min_content_width(400);
+    scrolled_window.set_min_content_height(300);
+    scrolled_window.set_child(Some(&text_view));
+    scrolled_window.set_policy(Automatic, Automatic);
+    scrolled_window.set_focusable(true);
+    scrolled_window.set_visible(true);
+    scrolled_window.show();
+
+    log_info(
+        state,
+        "ScrolledWindow created, set to visible, and focusable.",
+    );
+
+    scrolled_window
+}
 
 // Clears the contents of the given project area.
 pub fn clear_project_area(project_area: &GtkBox) {
@@ -19,107 +76,42 @@ pub fn clear_project_area(project_area: &GtkBox) {
 }
 
 // Loads content into the project area by creating a new TextView and appending it.
-pub fn load_project_area(state: &Arc<Mutex<AppState>>, content: &str) {
+pub fn load_project_area<F>(state: &Arc<Mutex<AppState>>, content: &str, create_editor: F)
+where
+    F: Fn(&str, &Arc<Mutex<AppState>>) -> ScrolledWindow,
+{
     let state_lock = state.lock().unwrap();
 
-    // Clone the `project_area` and release the lock on state before making mutable changes
+    // Clone project_area and release lock
     if let Some(ref project_area) = state_lock.project_area {
         let project_area = project_area.clone();
         drop(state_lock);
 
-        // Clear the previous content
+        // Clear previous content
+        log_info(state, "Clearing previous content...");
         clear_project_area(&project_area);
 
-        // Create a new lua editor
-        let lua_editor = create_lua_editor(content, Arc::clone(state));
+        // Create new editor
+        log_info(state, "Creating new text editor...");
+        let editor = create_editor(content, state);
 
-        // Append scrolled window to the project area
-        project_area.append(&lua_editor);
+        // Append scrolled window
+        log_info(state, "Appending editor to project area...");
+        project_area.append(&editor);
+
+        // Request focus for text view
+        let text_view = editor.child().unwrap().downcast::<TextView>().unwrap();
+        text_view.grab_focus();
         project_area.show();
 
-        // Re-lock the state to update `text_view`
+        // Re-lock state and update the text_view
         if let Ok(mut state_lock) = state.lock() {
-            state_lock.text_view =
-                Some(lua_editor.child().unwrap().downcast::<TextView>().unwrap());
+            state_lock.text_view = Some(editor.child().unwrap().downcast::<TextView>().unwrap());
             state_lock.is_modified = false;
         }
     } else {
         log_error(state, "Project area not found to load content.");
     }
-}
-
-// Function update new project
-pub fn update_new_project(state: &Arc<Mutex<AppState>>) {
-    let mut state_lock = state.lock().unwrap();
-
-    // Set the default save path using the HOME environment variable
-    let home_dir = env::var("HOME").expect("Failed to read HOME environment variable");
-    let default_project_dir = PathBuf::from(format!("{}/gameengine/projects", home_dir));
-    let default_project_file = default_project_dir.join("new_project.lua");
-
-    // Create directory if it doesn't exist
-    if let Err(e) = fs::create_dir_all(&default_project_dir) {
-        log_error(state, &format!("Failed to create default directory: {}", e));
-        return;
-    }
-
-    // Set default project path in AppState
-    state_lock.project_path = Some(default_project_file.clone());
-
-    // Create default file if it doesn't exist
-    if !default_project_file.exists() {
-        if let Err(e) = fs::write(&default_project_file, "") {
-            log_error(
-                state,
-                &format!("Failed to create default project file: {}", e),
-            );
-            return;
-        }
-    }
-
-    // Release the lock to prevent borrowing conflicts
-    drop(state_lock);
-
-    // use load_project_area to load empty content into project area
-    load_project_area(state, "");
-}
-
-// Function to open the "New Project" dialog
-pub fn open_new_project(state: &Arc<Mutex<AppState>>, parent: &Arc<ApplicationWindow>) {
-    log_info(state, "Opening new project dialog...");
-
-    // Create the dialog for "New Project"
-    let dialog = Dialog::builder()
-        .transient_for(parent.as_ref())
-        .modal(true)
-        .title("New Project")
-        .build();
-
-    // Set up content area in dialog
-    let content_area = dialog.content_area();
-    let dialog_box = GtkBox::new(Orientation::Vertical, 10);
-    content_area.append(&dialog_box);
-
-    // Add label to dialog
-    let label = Label::new(Some("Choose an option to start a new project:"));
-    dialog_box.append(&label);
-
-    // "Create New Project" button
-    let create_button = Button::with_label("Create New Project");
-    dialog_box.append(&create_button);
-
-    // "Create New Project" button action
-    {
-        let state = Arc::clone(state);
-        let dialog_clone = dialog.clone();
-        create_button.connect_clicked(move |_| {
-            update_new_project(&state);
-            log_info(&state, "New project created.");
-            dialog_clone.close();
-        });
-    }
-
-    dialog.show();
 }
 
 /// Function to save the current project to an existing file path.
@@ -178,7 +170,6 @@ pub fn save_as_file(state: Arc<Mutex<AppState>>, parent: Arc<ApplicationWindow>)
 
     dialog.add_button("_Cancel", ResponseType::Cancel);
     dialog.add_button("_Save", ResponseType::Accept);
-    // dialog.set_current_name("new_project.lua");
 
     let state_clone = Arc::clone(&state);
     dialog.connect_response(move |dialog, response| {

@@ -46,7 +46,7 @@ pub fn build_ui(
     log_info(state, "Creating project area...");
     let project_area = create_project_area();
     project_area.add_css_class("project-area");
-    grid.attach(&project_area, 0, 1, 2, 1);
+    grid.attach(&project_area, 0, 1, 2, 1); // Make sure these coordinates do not overlap with Vulkan area
 
     {
         let mut state = state.lock().unwrap();
@@ -59,21 +59,9 @@ pub fn build_ui(
     vulkan_area.set_vexpand(true);
     vulkan_area.set_hexpand(true);
     vulkan_area.set_size_request(800, 600);
-    grid.attach(&vulkan_area, 1, 1, 1, 1);
-
-    // Connect draw signal to the Vulkan rendering
-    let state_clone = Arc::clone(state);
-    vulkan_area.set_draw_func(move |_, _, width, height| {
-        log_info(
-            &state_clone,
-            &format!(
-                "Drawing Vulkan content... Width: {}, Height: {}",
-                width, height
-            ),
-        );
-        // Code to integrate Vulkan rendering here; handle Vulkan draw calls
-        // run_event_loop(&state_clone);
-    });
+    vulkan_area.set_valign(gtk::Align::Fill);
+    vulkan_area.set_halign(gtk::Align::Fill);
+    grid.attach(&vulkan_area, 1, 2, 1, 1); // Place it in a different row/column than project_area
 
     // Add menu bar
     log_info(state, "Creating menu bar...");
@@ -82,6 +70,7 @@ pub fn build_ui(
     grid.attach(&menu_bar, 0, 0, 2, 1);
 
     log_info(state, "Build UI successfully.");
+
     window
 }
 
