@@ -1,4 +1,4 @@
-// src/modules/engine/render/Vulkan/wayland/core.rs
+// src/modules/engine/render/vulkan/wayland/core.rs
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
