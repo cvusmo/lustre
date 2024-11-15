@@ -2,6 +2,7 @@
 // github.com/cvusmo/gameengine
 
 use crate::modules::engine::configuration::logger::{log_error, log_info, AppState};
+use glib::source::timeout_add_local;
 use gtk4::prelude::*;
 use gtk4::WrapMode::Word;
 use gtk4::{
@@ -11,8 +12,9 @@ use gtk4::{
 };
 use std::fs;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
-// Creates generic text editor (TextView inside of ScrolledWindow)
+// Create text editor
 pub fn create_text_editor(content: &str, state: &Arc<Mutex<AppState>>) -> ScrolledWindow {
     // Create TextBuffer
     let text_buffer = TextBuffer::new(None);
@@ -32,13 +34,26 @@ pub fn create_text_editor(content: &str, state: &Arc<Mutex<AppState>>) -> Scroll
         "TextView created and set to be editable and focusable.",
     );
 
-    // Signal to track changes in buffer
+    // Signal to track changes in buffer and debounce
     {
         let state_clone = Arc::clone(state);
+        let debounce_interval = Duration::from_millis(100);
         text_buffer.connect_changed(move |_| {
-            let mut state_lock = state_clone.lock().unwrap();
-            state_lock.is_modified = true;
-            log_info(&state_clone, "TextView content changed.");
+            // Debounce change signal
+            let state_clone_inner = Arc::clone(&state_clone);
+            timeout_add_local(debounce_interval, move || {
+                // Lock
+                {
+                    let mut state_lock = state_clone_inner.lock().unwrap();
+                    state_lock.is_modified = true;
+                }
+
+                // Log the change
+                log_info(&state_clone_inner, "TextView content changed.");
+
+                // Use ControlFlow::Break to stop further invocation of the closure
+                glib::ControlFlow::Break
+            });
         });
     }
 

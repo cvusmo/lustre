@@ -4,7 +4,7 @@
 use crate::modules::engine::configuration::config::Config;
 use crate::modules::engine::configuration::logger::{log_debug, log_info, AppState};
 use crate::modules::engine::gui::menu_bar::create_menu_bar;
-// use crate::modules::engine::gui::utils::load_project_area;
+use crate::modules::engine::gui::utils::{create_text_editor, load_project_area};
 
 use gtk::{
     gdk::Display, prelude::*, Application, ApplicationWindow, CssProvider, DrawingArea, Grid, Label,
@@ -46,12 +46,16 @@ pub fn build_ui(
     log_info(state, "Creating project area...");
     let project_area = create_project_area();
     project_area.add_css_class("project-area");
-    grid.attach(&project_area, 0, 1, 2, 1); // Make sure these coordinates do not overlap with Vulkan area
+    grid.attach(&project_area, 0, 1, 2, 1);
 
     {
         let mut state = state.lock().unwrap();
         state.project_area = Some(project_area.clone());
     }
+
+    // Load an initial empty project
+    log_info(state, "Loading initial project area...");
+    load_project_area(state, "", create_text_editor);
 
     // Create a drawing area for Vulkan
     log_info(state, "Creating Vulkan drawing area...");
