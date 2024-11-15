@@ -4,6 +4,7 @@
 use fern::Dispatch;
 use gtk::Label;
 use gtk4 as gtk;
+use mlua::prelude::*;
 use once_cell::sync::OnceCell;
 use std::{
     env,
@@ -22,6 +23,7 @@ pub struct AppState {
     pub project_path: Option<PathBuf>,
     pub text_view: Option<gtk4::TextView>,
     pub is_modified: bool,
+    pub lua: Arc<Mutex<Lua>>,
 }
 
 // Init logger
@@ -101,12 +103,14 @@ pub fn setup_logging(state: &Arc<Mutex<AppState>>, debug: bool) -> Result<(), Bo
 // Create states
 pub fn create_state() -> Arc<Mutex<AppState>> {
     let log_label = Label::new(None);
+    let lua = Lua::new();
     Arc::new(Mutex::new(AppState {
         log_label,
         project_area: None,
         project_path: None,
         text_view: None,
         is_modified: false,
+        lua: Arc::new(Mutex::new(lua)),
     }))
 }
 

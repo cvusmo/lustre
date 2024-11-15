@@ -3,10 +3,9 @@
 
 use crate::modules::engine::configuration::logger::AppState;
 use crate::modules::engine::configuration::logger::*;
-use crate::modules::engine::gui::editor::lua_editor::run_lua_from_editor;
+use crate::modules::engine::gui::editor::lua_editor::run_lua_script;
 use crate::modules::engine::gui::explorer::file_explorer::*;
-use crate::modules::engine::gui::new_project::*;
-use crate::modules::engine::gui::utils::{handle_exit, save_as_file, save_file};
+use crate::modules::engine::gui::utils::{handle_exit, open_new_project, save_as_file, save_file};
 
 use gtk4::prelude::*;
 use gtk4::{
@@ -38,12 +37,18 @@ pub fn create_menu_bar(
     file_box.append(&new_button);
 
     // Connect New project to dialog function
+    // let state_clone = Arc::clone(state);
+    // new_button.connect_clicked(move |_| {
+    //    log_info(&state_clone, "New project created...");
+    //    update_new_project(&state_clone);
+    //});
+
+    // Connect New Project to dialog function
     let state_clone = Arc::clone(state);
     let parent_clone = Arc::clone(parent);
     new_button.connect_clicked(move |_| {
-        log_info(&state_clone, "New project button clicked.");
-        open_new_project_dialog(&state_clone, &parent_clone);
-        log_info(&state_clone, "New project dialog opened.");
+        log_info(&state_clone, "Creating New Project...");
+        open_new_project(&state_clone, &parent_clone);
     });
 
     // Open file button
@@ -113,8 +118,8 @@ pub fn create_menu_bar(
     let state_clone_compile = Arc::clone(state);
     compile_button.connect_clicked(move |_| {
         log_info(&state_clone_compile, "Compile button clicked.");
-        //run_lua_script(&state_clone_compile);
-        run_lua_from_editor(&state_clone_compile);
+        run_lua_script(&state_clone_compile);
+        // run_lua_from_editor(&state_clone_compile);
         log_info(&state_clone_compile, "Project compiling finished.");
     });
 

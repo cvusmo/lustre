@@ -26,7 +26,8 @@ pub fn open_file(state: Arc<Mutex<AppState>>, parent: &impl IsA<gtk4::Window>) {
     // Add a filter to allow only text files
     let filter = gtk4::FileFilter::new();
     filter.add_pattern("*.lua");
-    filter.set_name(Some("Lua Files"));
+    filter.add_pattern("*.txt");
+    filter.set_name(Some("Project Files"));
     dialog.add_filter(&filter);
 
     // Add response buttons
@@ -51,7 +52,7 @@ pub fn open_file(state: Arc<Mutex<AppState>>, parent: &impl IsA<gtk4::Window>) {
                                 state_lock.project_path = Some(file_path.clone());
                             }
 
-                            // Use the utility function to load the project content
+                            // Load project area
                             load_project_area(&state_clone_inner, &content);
 
                             // Log information

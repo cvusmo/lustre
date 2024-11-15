@@ -6,20 +6,38 @@ use gtk4::prelude::*;
 use gtk4::PolicyType::Automatic;
 use gtk4::WrapMode::Word;
 use gtk4::{ScrolledWindow, TextBuffer, TextView};
-use mlua::prelude::*;
 use std::fs;
 use std::sync::{Arc, Mutex};
 
-// Create new lua editor widget
-pub fn create_lua_editor(content: &str) -> ScrolledWindow {
+// Create lua editor
+pub fn create_lua_editor(content: &str, state: Arc<Mutex<AppState>>) -> ScrolledWindow {
     // Create TextBuffer
     let text_buffer = TextBuffer::new(None);
     text_buffer.set_text(content);
+    text_buffer.set_enable_undo(true);
+
+    // Keybinding for saving (ctrl + s)
+    // TODO: add keybinding functionality
 
     // Create Textview with TextBuffer
     let text_view = TextView::with_buffer(&text_buffer);
     text_view.set_editable(true);
     text_view.set_wrap_mode(Word);
+
+    // Signal to track changes
+    {
+        let state_clone = Arc::clone(&state);
+        text_buffer.connect_changed(move |_| {
+            let mut state_lock = state_clone.lock().unwrap();
+            state_lock.is_modified = true;
+        });
+    }
+
+    // Store TextView in AppState
+    {
+        let mut state_lock = state.lock().unwrap();
+        state_lock.text_view = Some(text_view.clone());
+    }
 
     // Create ScrolledWindow
     let scrolled_window = ScrolledWindow::new();
