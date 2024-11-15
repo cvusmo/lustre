@@ -4,26 +4,42 @@
 use fern::Dispatch;
 use gtk::Label;
 use gtk4 as gtk;
-use std::error::Error;
-use std::env;
-use std::fs::File;
-use std::sync::{Arc, Mutex};
+use mlua::prelude::*;
 use once_cell::sync::OnceCell;
+use std::{
+    env,
+    error::Error,
+    fs::File,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 static LOGGER_INITIALIZED: OnceCell<bool> = OnceCell::new();
 
+// AppState
 pub struct AppState {
     pub log_label: Label,
+    pub project_area: Option<gtk::Box>,
+    pub project_path: Option<PathBuf>,
+    pub text_view: Option<gtk4::TextView>,
+    pub is_modified: bool,
+    pub lua: Arc<Mutex<Lua>>,
 }
 
 // Init logger
-fn initialize_logger(state: &Arc<Mutex<AppState>>, log_file_path: &str, log_level: log::LevelFilter) -> Result<(), Box<dyn Error>> {
+fn initialize_logger(
+    _state: &Arc<Mutex<AppState>>,
+    log_file_path: &str,
+    log_level: log::LevelFilter,
+) -> Result<(), Box<dyn Error>> {
     let log_file_result = File::create(log_file_path)?;
 
     Dispatch::new()
         .format(|out, message, record| {
             let module = record.target().split("::").last().unwrap_or("unknown");
-            let line = record.line().map_or("unknown".to_string(), |l| l.to_string());
+            let line = record
+                .line()
+                .map_or("unknown".to_string(), |l| l.to_string());
             out.finish(format_args!(
                 "[{}] {}, {}:{}",
                 record.level(),
@@ -37,7 +53,8 @@ fn initialize_logger(state: &Arc<Mutex<AppState>>, log_file_path: &str, log_leve
         .chain(log_file_result)
         .apply()?;
 
-    log_info(state, &format!("Logger successfully created: {}", log_file_path));
+    //log_info(state, &format!("Logger successfully created: {}", log_file_path));
+    LOGGER_INITIALIZED.set(true).unwrap();
     Ok(())
 }
 
@@ -86,29 +103,42 @@ pub fn setup_logging(state: &Arc<Mutex<AppState>>, debug: bool) -> Result<(), Bo
 // Create states
 pub fn create_state() -> Arc<Mutex<AppState>> {
     let log_label = Label::new(None);
-    Arc::new(Mutex::new(AppState { log_label }))
+    let lua = Lua::new();
+    Arc::new(Mutex::new(AppState {
+        log_label,
+        project_area: None,
+        project_path: None,
+        text_view: None,
+        is_modified: false,
+        lua: Arc::new(Mutex::new(lua)),
+    }))
 }
 
+// Update Log Label
 pub fn update_log_label(state: &Arc<Mutex<AppState>>, message: &str) {
     let state = state.lock().unwrap();
     state.log_label.set_label(message);
 }
 
+// Log Info
 pub fn log_info(state: &Arc<Mutex<AppState>>, message: &str) {
     log::info!("{}", message);
     update_log_label(state, message);
 }
 
+// Log Debug
 pub fn log_debug(state: &Arc<Mutex<AppState>>, message: &str) {
     log::debug!("{}", message);
     update_log_label(state, message);
 }
 
+// Log Warn
 pub fn log_warn(state: &Arc<Mutex<AppState>>, message: &str) {
     log::warn!("{}", message);
     update_log_label(state, message);
 }
 
+// Log Error
 pub fn log_error(state: &Arc<Mutex<AppState>>, message: &str) {
     log::error!("{}", message);
     update_log_label(state, message);

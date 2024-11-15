@@ -1,45 +1,80 @@
 // src/modules/engine/gui/window.rs
 // github.com/cvusmo/gameengine
 
-use crate::modules::engine::configuration::logger::{log_debug, log_info, AppState};
 use crate::modules::engine::configuration::config::Config;
+use crate::modules::engine::configuration::logger::{log_debug, log_info, AppState};
 use crate::modules::engine::gui::menu_bar::create_menu_bar;
-use gtk4 as gtk;
-use gtk::{ gdk::Display, prelude::*, Application, 
-    ApplicationWindow, CssProvider, Grid, Label};
-use std::{env, path::{Path, PathBuf}, sync::{Arc, Mutex}};
+use crate::modules::engine::gui::utils::{create_text_editor, load_project_area};
 
+use gtk::{
+    gdk::Display, prelude::*, Application, ApplicationWindow, CssProvider, DrawingArea, Grid, Label,
+};
+use gtk4 as gtk;
+use std::{
+    env,
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex},
+};
+
+// Function that builds components for window
 pub fn build_ui(
     app: &Application,
     config: &Config,
     state: &Arc<Mutex<AppState>>,
-) -> ApplicationWindow {
-    log_info(state, "Loading config...");
-    
+) -> Arc<ApplicationWindow> {
+    log_info(state, "Begin building ui && loading config...");
+
     let (background_color, font_color, font_size) = load_theme(config, state);
-    let _config_path = load_configuration_path(state); 
+    let _config_path = load_configuration_path(state);
     let css = generate_css(&font_color, font_size, &background_color);
-    
+
     apply_css(&css, state);
-    
-    log_info(state, "Building window...");
+
+    // Create the main window
+    log_info(state, "Creating window UI...");
     let window = create_window(app);
-    
-    // Create the main layout
+
+    // Wrap window in Arc
+    let window = Arc::new(window);
+
+    // Create main layout grid
+    log_info(state, "Creating grid...");
     let grid = create_grid();
     window.set_child(Some(&grid));
-    
-    // Create project area
+
+    // Add project area and set it in AppState
+    log_info(state, "Creating project area...");
     let project_area = create_project_area();
     project_area.add_css_class("project-area");
-    grid.attach(&project_area, 0, 1, 2, 1); 
-    
-    // Create menu bar
-    let menu_bar = create_menu_bar(state);
+    grid.attach(&project_area, 0, 1, 2, 1);
+
+    {
+        let mut state = state.lock().unwrap();
+        state.project_area = Some(project_area.clone());
+    }
+
+    // Load an initial empty project
+    log_info(state, "Loading initial project area...");
+    load_project_area(state, "", create_text_editor);
+
+    // Create a drawing area for Vulkan
+    log_info(state, "Creating Vulkan drawing area...");
+    let vulkan_area = DrawingArea::new();
+    vulkan_area.set_vexpand(true);
+    vulkan_area.set_hexpand(true);
+    vulkan_area.set_size_request(800, 600);
+    vulkan_area.set_valign(gtk::Align::Fill);
+    vulkan_area.set_halign(gtk::Align::Fill);
+    grid.attach(&vulkan_area, 1, 2, 1, 1); // Place it in a different row/column than project_area
+
+    // Add menu bar
+    log_info(state, "Creating menu bar...");
+    let menu_bar = create_menu_bar(state, &window, app);
     menu_bar.add_css_class("menu-bar");
     grid.attach(&menu_bar, 0, 0, 2, 1);
-    
-    log_info(state, "Window built successfully.");
+
+    log_info(state, "Build UI successfully.");
+
     window
 }
 
@@ -54,10 +89,7 @@ fn create_project_area() -> gtk::Box {
     project_area
 }
 
-// Update project area
-// TODO: creat function
-
-// Loads theme configuration 
+// Loads theme configuration
 fn load_theme(config: &Config, state: &Arc<Mutex<AppState>>) -> (String, String, f32) {
     let background_color = config.theme.background_color.clone();
     log_info(state, &format!("Background color: {}", background_color));
@@ -71,16 +103,19 @@ fn load_theme(config: &Config, state: &Arc<Mutex<AppState>>) -> (String, String,
     (background_color, font_color, font_size)
 }
 
-// Loads the configuration 
+// Loads the configuration
 fn load_configuration_path(state: &Arc<Mutex<AppState>>) -> PathBuf {
     let home_dir = env::var("HOME").unwrap_or_else(|_| String::from("/home/$USER"));
     let config_file = format!("{}/.config/gameengine/gameengine.conf", home_dir);
     let config_path = Path::new(&config_file);
-    log_info(state, &format!("Configuration file path: {}", config_path.display()));
-    config_path.to_path_buf() 
+    log_info(
+        state,
+        &format!("Configuration file path: {}", config_path.display()),
+    );
+    config_path.to_path_buf()
 }
 
-// Generates the CSS string 
+// Generates the CSS string
 fn generate_css(font_color: &str, font_size: f32, background_color: &str) -> String {
     format!(
         "
@@ -100,9 +135,6 @@ fn generate_css(font_color: &str, font_size: f32, background_color: &str) -> Str
         .clock {{
             color: {};
             font-size: {}px;
-            width: 100%;
-            height: 100%;
-            text-align: center;
         }}
         .window {{
             background-color: {};
@@ -121,7 +153,7 @@ fn generate_css(font_color: &str, font_size: f32, background_color: &str) -> Str
 // Applies the generated CSS to the application.
 fn apply_css(css: &str, state: &Arc<Mutex<AppState>>) {
     let provider = CssProvider::new();
-    provider.load_from_data(css); 
+    provider.load_from_data(css);
     log_debug(state, "CSS loaded successfully.");
 
     gtk::style_context_add_provider_for_display(
@@ -137,25 +169,22 @@ fn apply_css(css: &str, state: &Arc<Mutex<AppState>>) {
 fn create_window(app: &Application) -> ApplicationWindow {
     ApplicationWindow::builder()
         .application(app)
-        .title("gameengine")  
+        .title("gameengine")
         .css_classes(vec!["window".to_string()])
         .build()
 }
 
 // Creates a grid layout
 fn create_grid() -> Grid {
-    let grid = Grid::builder()
-        .row_spacing(10)
-        .column_spacing(10)
-        .build();
+    let grid = Grid::builder().row_spacing(10).column_spacing(10).build();
 
-    // set grid to expand
+    // Set grid to expand
     grid.set_vexpand(true);
     grid.set_hexpand(true);
 
-    // grid alignment
-    grid.set_halign(gtk::Align::Fill); 
-    grid.set_valign(gtk::Align::Fill); 
+    // Grid alignment
+    grid.set_halign(gtk::Align::Fill);
+    grid.set_valign(gtk::Align::Fill);
 
     grid
 }
