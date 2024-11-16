@@ -1,3 +1,6 @@
+// Copyright 2025 Nicholas Jordan. All Rights Reserved.
+// github.com/cvusmo/lustre
+
 // src/configuration/validate.rs
 // github.com/cvusmo/gameengine
 
@@ -55,4 +58,3 @@ pub fn validate_all(animations: &[AnimationConfig], theme: &ThemeConfig) -> Resu
 
     Ok(())
 }
-

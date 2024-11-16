@@ -1,3 +1,6 @@
+// Copyright 2025 Nicholas Jordan. All Rights Reserved.
+// github.com/cvusmo/lustre
+
 use clap::{Arg, Command};
 use gtk::{glib, prelude::*, Application};
 use gtk4 as gtk;
@@ -107,4 +110,3 @@ fn run_main(app: &Application, state: &Arc<Mutex<AppState>>, config_file: Option
     let window = gui::window::build_ui(app, &config, state);
     window.present();
 }
-

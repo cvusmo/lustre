@@ -1,3 +1,6 @@
+// Copyright 2025 Nicholas Jordan. All Rights Reserved.
+// github.com/cvusmo/lustre
+
 // src/modules/engine/gui/window.rs
 // github.com/cvusmo/gameengine
 
@@ -162,7 +165,8 @@ fn apply_css(css: &str, state: &Arc<Mutex<AppState>>) {
         gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
 
-    log_debug(state, &format!("Generated CSS:\n{}", css));
+    log_debug(state, &format!("Generated CSS:
+{}", css));
 }
 
 // Creates the main window

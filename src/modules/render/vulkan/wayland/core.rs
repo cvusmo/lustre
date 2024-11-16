@@ -1,3 +1,6 @@
+// Copyright 2025 Nicholas Jordan. All Rights Reserved.
+// github.com/cvusmo/lustre
+
 // src/modules/engine/render/vulkan/wayland/core.rs
 
 use std::sync::{Arc, Mutex};
