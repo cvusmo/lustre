@@ -1,6 +1,6 @@
 # Lustre
 
-![lustre_logo](https://github.com/cvusmo/gameengine/blob/dev/src/assets/icon/lustre.png?raw=true)
+![lustre_logo](https://github.com/cvusmo/lustre/blob/dev/src/assets/icon/logo.png?raw=true)
 
 **lustre** is a 3D voxel-based game engine designed with planetary exploration, crafting and survival. Built with performance and creativity in mind, Lustre aims to provide developers with a powerful platform for creating immersive worlds.
 
@@ -26,7 +26,7 @@ Lustre is proprietary software licensed under the terms outlined in the [Proprie
 
 ## Logo
 The logo for lustre can be viewed at the following link:
-[View lustre logo](https://github.com/cvusmo/gameengine/blob/dev/src/assets/icon/lustre.png?raw=true)
+[View lustre logo](https://github.com/cvusmo/lustre/blob/dev/src/assets/icon/logo.png?raw=true)
 
 ---
 
