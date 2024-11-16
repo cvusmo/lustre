@@ -25,6 +25,7 @@ use vulkano::VulkanLibrary;
 
 use crate::modules::engine::configuration::logger::{log_error, log_info, AppState};
 
+#[allow(dead_code)]
 // VulkanContext struct
 pub struct VulkanContext {
     device: Arc<Device>,
