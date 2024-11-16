@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use gameengine::create_state;
 use gameengine::modules::engine::configuration::config::Config;
-use gameengine::modules::engine::configuration::logger::{log_error, log_info, log_warn, AppState};
+use gameengine::modules::engine::configuration::logger::{log_error, AppState};
 use gameengine::modules::engine::gui;
 use gameengine::modules::engine::gui::editor::lua_editor::register_lua_functions;
 
@@ -36,7 +36,6 @@ fn main() -> glib::ExitCode {
         eprintln!("Failed to set Lua global: {}", e);
         return glib::ExitCode::FAILURE;
     }
-
     // Command-line argument parsing
     let matches = Command::new("gameengine")
         .version("0.0.1")
@@ -45,7 +44,7 @@ fn main() -> glib::ExitCode {
             Arg::new("script")
                 .help("Path to the Lua script to execute")
                 .value_name("SCRIPT")
-                .required(true)
+                .required(false)
                 .index(1),
         )
         .arg(
@@ -64,29 +63,17 @@ fn main() -> glib::ExitCode {
                 .num_args(1),
         )
         .get_matches();
-    // Load and execute the Lua script
-    let script_path = matches
-        .get_one::<String>("script")
-        .expect("Lua script path is required");
-    match fs::read_to_string(script_path) {
-        Ok(script_content) => match lua.load(&script_content).exec() {
-            Ok(_) => println!("Lua script executed successfully."),
-            Err(err) => eprintln!("Lua execution error: {}", err),
-        },
-        Err(err) => eprintln!("Failed to read Lua script: {}", err),
-    }
 
-    // Check if GUI
-    if matches.get_flag("gui") {
-        // Init GUI
-        if let Err(e) = gtk::init() {
-            eprintln!("Failed to initialize GTK: {}", e);
-            return glib::ExitCode::FAILURE;
-        }
-    }
+    let config_file = matches.get_one::<String>("config").cloned();
 
-    // CLI-only mode
-    if !matches.get_flag("gui") {
+    // Determine whether to run the GUI or execute a script
+    if matches.get_flag("gui") || matches.get_one::<String>("script").is_none() {
+        // Launch GUI mode
+        let app = Application::builder().application_id(APP_ID).build();
+        app.connect_activate(move |app| run_main(app, &state, config_file.clone()));
+        app.run();
+    } else if let Some(script_path) = matches.get_one::<String>("script") {
+        // Execute the Lua script
         match fs::read_to_string(script_path) {
             Ok(script_content) => {
                 if let Err(err) = lua.load(&script_content).exec() {
@@ -101,15 +88,9 @@ fn main() -> glib::ExitCode {
                 return glib::ExitCode::FAILURE;
             }
         }
-        return glib::ExitCode::SUCCESS;
     }
 
-    let config_file = matches.get_one::<String>("config").cloned();
-
-    // Create application
-    let app = Application::builder().application_id(APP_ID).build();
-    app.connect_activate(move |app| run_main(app, &state, config_file.clone()));
-    app.run()
+    glib::ExitCode::SUCCESS
 }
 
 fn run_main(app: &Application, state: &Arc<Mutex<AppState>>, config_file: Option<String>) {
@@ -126,3 +107,4 @@ fn run_main(app: &Application, state: &Arc<Mutex<AppState>>, config_file: Option
     let window = gui::window::build_ui(app, &config, state);
     window.present();
 }
+
