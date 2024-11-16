@@ -4,8 +4,40 @@ use crate::modules::engine::configuration::logger::{log_error, log_info, AppStat
 use crate::modules::engine::gui::utils::{create_text_editor, execute_lua_script};
 use gtk4::prelude::*;
 use gtk4::ScrolledWindow;
+use mlua::prelude::*;
 use std::fs;
 use std::sync::{Arc, Mutex};
+
+// Function to expose Lua
+pub fn register_lua_functions(lua: &Lua, state: Arc<Mutex<AppState>>) -> LuaResult<()> {
+    let print_message = lua.create_function(move |_, message: String| {
+        log_info(&state, &message);
+        Ok(())
+    })?;
+
+    // Register the function in the global Lua environment
+    lua.globals().set("print_message", print_message)?;
+    Ok(())
+}
+
+// Function to define Lua bindings
+pub fn load_mods(lua: &Lua, state: &Arc<Mutex<AppState>>) {
+    let mod_path = "./mods";
+    let paths = std::fs::read_dir(mod_path).unwrap();
+
+    for path in paths {
+        let script_path = path.unwrap().path();
+        if script_path.extension().and_then(std::ffi::OsStr::to_str) == Some("lua") {
+            let script_content = std::fs::read_to_string(&script_path).unwrap();
+            if let Err(e) = lua.load(&script_content).exec() {
+                log_error(
+                    state,
+                    &format!("Failed to load Lua script {:?}: {}", script_path, e),
+                );
+            }
+        }
+    }
+}
 
 // Create lua editor
 pub fn create_lua_editor(content: &str, state: &Arc<Mutex<AppState>>) -> ScrolledWindow {

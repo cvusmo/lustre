@@ -1,9 +1,12 @@
 // src/modules/engine/render/vulkan/wayland/core.rs
 
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+// use std::time::Duration;
+use std::collections::HashMap;
 use vulkano::command_buffer::pool::{CommandPool, CommandPoolCreateInfo};
-use vulkano::command_buffer::PrimaryAutoCommandBuffer;
+use vulkano::command_buffer::{
+    AutoCommandBufferBuilder, CommandBufferUsage, PrimaryAutoCommandBuffer, SubpassContents,
+};
 use vulkano::device::{
     Device, DeviceCreateInfo, DeviceExtensions, Features, Queue, QueueCreateFlags, QueueCreateInfo,
     QueueFlags,
@@ -12,7 +15,21 @@ use vulkano::format::Format;
 use vulkano::image::view::{ImageView, ImageViewCreateInfo};
 use vulkano::image::ImageUsage;
 use vulkano::instance::Instance;
-use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass};
+use vulkano::pipeline::DynamicState;
+use vulkano::pipeline::graphics::{
+    color_blend::ColorBlendState,
+    input_assembly::InputAssemblyState,
+    rasterization::RasterizationState,
+    tessellation::TessellationDomainOrigin,
+    tessellation::TessellationState,
+    vertex_input::{Vertex, VertexBufferDescription, VertexMemberInfo, VertexInputRate, VertexInputState},
+    viewport::{Viewport, ViewportState},
+    GraphicsPipeline, GraphicsPipelineCreateInfo,
+};
+use vulkano::pipeline::layout::PipelineLayout;
+use vulkano::pipeline::PipelineCreateFlags;
+use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass};
+use vulkano::shader::{ShaderModule, ShaderModuleCreateInfo};
 use vulkano::swapchain;
 use vulkano::swapchain::{
     CompositeAlpha, PresentMode, Surface, SurfaceInfo, Swapchain, SwapchainCreateInfo,
@@ -25,6 +42,7 @@ use vulkano::VulkanLibrary;
 
 use crate::modules::engine::configuration::logger::{log_error, log_info, AppState};
 
+// #[allow(dead_code)]
 // VulkanContext struct
 pub struct VulkanContext {
     device: Arc<Device>,
@@ -228,7 +246,7 @@ impl VulkanContext {
     }
 
     // Function to create render pass
-    fn create_render_pass(device: Arc<Device>) -> Arc<RenderPass> {
+    fn build_render_pass(device: Arc<Device>) -> Arc<RenderPass> {
         vulkano::single_pass_renderpass!(
             device.clone(),
             attachments: {
@@ -319,13 +337,14 @@ impl VulkanContext {
         )
     }
 
-    /// Render function placeholder for drawing frames
+    /// Render function
     pub fn render(&mut self, state: &Arc<Mutex<AppState>>) {
         log_info(state, "Rendering a frame...");
 
         let (image_index, suboptimal, acquire_future) = match swapchain::acquire_next_image(
             self.swapchain.clone(),
-            Some(Duration::from_secs(1)),
+            //Some(Duration::from_secs(1)),
+            None,
         ) {
             Ok(result) => result,
             Err(err) => {
@@ -341,8 +360,27 @@ impl VulkanContext {
             return;
         }
 
-        // Getter for command_buffer for acquired image index
-        let command_buffer = &self.command_buffers[image_index as usize];
+        // Begin Rendering commands
+        // let command_buffer = &self.command_buffers[image_index as usize];
+        let command_buffer = AutoCommandBufferBuilder::primary(
+            self.device.clone(),
+            self.queue.family(),
+            CommandBufferUsage::OneTimeSubmit,
+        )
+        .unwrap()
+        .begin_render_pass(
+            self.framebuffers[image_index].clone(),
+            SubpassContents::Inline,
+            vec![[0.0, 0.0, 0.0, 1.0].into()],
+        )
+        .unwrap()
+        .bind_pipeline_graphics(self.pipeline.clone())
+        .draw(3, 1, 0, 0) // Draw a single triangle
+        .unwrap()
+        .end_render_pass()
+        .unwrap()
+        .build()
+        .unwrap();
 
         // Wait for previous frame to finish
         self.in_flight_fence
@@ -423,6 +461,118 @@ impl VulkanContext {
         self.command_buffers = new_command_buffers;
 
         log_info(state, "Swapchain recreated successfully");
+    }
+
+    // Function to Create Vertex Buffer Description
+    pub fn create_vertex_buffer_description() -> VertexBufferDescription {
+        // Define members for Vertex Buffer
+        let mut members = HashMap::new();
+
+        // Add vetex attributes
+        members.insert(
+            "position".to_string(),
+            VertexMemberInfo {
+            offset: 0,
+            format: Format::R32G32B32_SFLOAT, // vec3 (xyz)
+            num_elements: 1,
+            },
+        );
+        members.insert(
+            "color".to_string(),
+            VertexMemberInfo {
+                offset: 12,
+                format: Format::R32G32B32A32_SFLOAT, // vec4 (rgba)
+                num_elements: 1,
+            },
+        );
+
+        // Define Vertex Buffer Description
+        let vertex_buffer_description = VertexBufferDescription { 
+            members,
+            stride: 28, // Total size of one vertex (3 floats + 4 floats = 7 * 4 bytes)
+            input_rate: VertexInputRate::Vertex,
+        };
+
+        vertex_buffer_description
+    }
+
+    // Function to Load Shader
+    fn load_shader(device: Arc<Device>, shader_path: &str) -> Arc<ShaderModule> {
+        let shader_code = std::fs::read(shader_path).expect("Failed to read shader file");
+
+        // Convert Vec<u8> to Vec<u32>
+        let shader_code_u32 = bytemuck::cast_slice::<u8, u32>(&shader_code);
+
+        // Create ShaderModule
+        ShaderModule::new(device.clone(), ShaderModuleCreateInfo::new(shader_code_32))
+            .expect("Failed to create shader module")
+    }
+
+    // Function to Create Pipeline
+    pub fn create_pipeline(&self) -> Arc<GraphicsPipeline> {
+        // Load shaders
+        let vertex_shaders = Self::load_shader(self.device.clone(), "shaders/vert.spv");
+        let fragment_shaders = Self::load_shader(self.device.clone(), "shaders/frag.spv");
+
+        // Call Render Pass
+        let render_pass = Self::build_render_pass(self.device.clone());
+
+        // Define pipeline layout
+        let pipeline_layout = PipelineLayout::new(self.device.clone(), Default::default())
+            .expect("Failed to create pipeline layout");
+
+        // Define the viewport
+        let viewport = Viewport {
+            offset: [0.0, 0.0],
+            extent: [800.0, 600.0],
+            depth_range: 0.0..=1.0,
+        };
+
+        // Call Vertex Buffer Description
+        let vertex_buffer_description = create_vertex_buffer_description();
+
+        // Define PipelineCreateFlags
+        let pipeline_create_flags =
+            PipelineCreateFlags::DISABLE_OPTIMIZATION.union(PipelineCreateFlags::ALLOW_DERIVATIVES);
+
+        // Define TessellationState
+        let tessellation_state = TessellationState {
+            patch_control_points: 4,
+            domain_origin: TessellationDomainOrigin::UpperLeft,
+            ..Default::default()
+        };
+
+        // Define Viewport State
+        let viewport_state = ViewportState::default();
+
+        // Define Dynamic State
+        let dynamic_state = DynamicState:: 
+
+        // Create the pipeline
+        let pipeline_create_info = GraphicsPipelineCreateInfo {
+            flags: pipeline_create_flags,
+            //vertex_input_state: Some(VertexInputState::new()),
+            vertex_input_state: Some(vertex_buffer_description.into()),
+            input_assembly_state: Some(InputAssemblyState::default()),
+            tessellation_state: Some(tessellation_state),
+            viewport_state: Some(viewport_state),
+            rasterization_state: Default::default(),
+            multisample_state: Default::default(),
+            color_blend_state: Default::default(),
+            dynamic_state: 
+            depth_stencil_state: Default::default(),
+            layout: Arc::new(pipeline_layout),
+            subpass: Some(Subpass::from(render_pass, 0).unwrap()),
+            stages: vec![
+                vertex_shader.entry_point("main").unwrap().into(),
+                fragment_shader.entry_point("main").unwrap().into(),
+            ]
+            .into(),
+        };
+
+        // Create graphics pipeline
+        GraphicsPipeline::new(self.device.clone(), None, pipeline_create_info)
+            .expect("Failed to create graphics pipeline")
     }
 
     // Resizes the swapchain when the window size changes
