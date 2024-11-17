@@ -70,9 +70,21 @@ pub fn build_ui(
     vulkan_area.set_halign(gtk::Align::Fill);
     grid.attach(&vulkan_area, 1, 2, 1, 1); // Place it in a different row/column than project_area
 
+    // Create surface for vulkan
+    let surface = Surface::from_window(&window).expect("Failed to create Vulkan surface.");
+
+    // Connect DrawingArea to Vulkan rendering
+    let vulkan_context_clone = Arc::clone(&vulkan_context);
+    vulkan_area.connect_draw(move |_widget, _context| {
+        if let Ok(mut vulkan_ctx) = vulkan_context_clone.lock() {
+            vulkan_ctx.render(state);
+        }
+        Inhibit(false);
+    });
+
     // Add menu bar
     log_info(state, "Creating menu bar...");
-    let menu_bar = create_menu_bar(state, &window, app);
+    let menu_bar = create_menu_bar(state, &window, app, vulkan_context);
     menu_bar.add_css_class("menu-bar");
     grid.attach(&menu_bar, 0, 0, 2, 1);
 
@@ -165,8 +177,14 @@ fn apply_css(css: &str, state: &Arc<Mutex<AppState>>) {
         gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
 
-    log_debug(state, &format!("Generated CSS:
-{}", css));
+    log_debug(
+        state,
+        &format!(
+            "Generated CSS:
+{}",
+            css
+        ),
+    );
 }
 
 // Creates the main window

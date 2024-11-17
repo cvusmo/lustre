@@ -9,6 +9,7 @@ use crate::modules::engine::configuration::logger::*;
 use crate::modules::engine::gui::editor::lua_editor::{create_lua_editor, run_lua_script};
 use crate::modules::engine::gui::explorer::file_explorer::*;
 use crate::modules::engine::gui::utils::{handle_exit, load_project_area, save_as_file, save_file};
+use crate::modules::render::vulkan::wayland::core::VulkanContext;
 
 use gtk4::prelude::*;
 use gtk4::{
@@ -21,6 +22,7 @@ pub fn create_menu_bar(
     state: &Arc<Mutex<AppState>>,
     parent: &Arc<ApplicationWindow>,
     app: &Application,
+    vulkan_context: &Arc<Mutex<VulkanContext>>,
 ) -> GtkBox {
     log_info(state, "Creating menu bar...");
 
@@ -113,10 +115,28 @@ pub fn create_menu_bar(
     project_box.append(&compile_button);
     let state_clone_compile = Arc::clone(state);
     compile_button.connect_clicked(move |_| {
-        log_info(&state_clone_compile, "Compile button clicked.");
+        log_info(&state_clone_compile, "Begin compiling project...");
         run_lua_script(&state_clone_compile);
         // run_lua_from_editor(&state_clone_compile);
-        log_info(&state_clone_compile, "Project compiling finished.");
+        log_info(&state_clone_compile, "Project compiled.");
+    });
+
+    // Render Project Button
+    let render_button = Button::with_label("Render");
+    project_box.append(&render_button);
+    let state_clone_render = Arc::clone(state);
+    let vulkan_context_clone = Arc::clone(vulkan_context);
+    render_button.connect_clicked(move |_| {
+        // Calls rendering and logs
+        log_info(&state_clone_render, "Rendering project...");
+        if let Ok(mut vulkan_context) = vulkan_context_clone.lock() {
+            vulkan_context.render(&state_clone_render);
+        } else {
+            log_error(
+                &state_clone_render,
+                "Failed to lock Vulkan context for rendering.",
+            );
+        }
     });
 
     project_popover.set_child(Some(&project_box));
