@@ -1,8 +1,6 @@
 // Copyright 2025 Nicholas Jordan. All Rights Reserved.
 // github.com/cvusmo/lustre
-
 // src/modules/engine/gui/window.rs
-// github.com/cvusmo/gameengine
 
 use crate::modules::engine::configuration::config::Config;
 use crate::modules::engine::configuration::logger::{log_debug, log_info, AppState};
@@ -71,20 +69,20 @@ pub fn build_ui(
     grid.attach(&vulkan_area, 1, 2, 1, 1); // Place it in a different row/column than project_area
 
     // Create surface for vulkan
-    let surface = Surface::from_window(&window).expect("Failed to create Vulkan surface.");
+    // let surface = Surface::from_window(&window).expect("Failed to create Vulkan surface.");
 
     // Connect DrawingArea to Vulkan rendering
-    let vulkan_context_clone = Arc::clone(&vulkan_context);
-    vulkan_area.connect_draw(move |_widget, _context| {
-        if let Ok(mut vulkan_ctx) = vulkan_context_clone.lock() {
-            vulkan_ctx.render(state);
-        }
-        Inhibit(false);
-    });
+    //let vulkan_context_clone = Arc::clone(&vulkan_context);
+    //vulkan_area.connect_draw(move |_widget, _context| {
+    //    if let Ok(mut vulkan_ctx) = vulkan_context_clone.lock() {
+    //        vulkan_ctx.render(state);
+    //    }
+    //    Inhibit(false);
+    //});
 
     // Add menu bar
     log_info(state, "Creating menu bar...");
-    let menu_bar = create_menu_bar(state, &window, app, vulkan_context);
+    let menu_bar = create_menu_bar(state, &window, app); //, vulkan_context);
     menu_bar.add_css_class("menu-bar");
     grid.attach(&menu_bar, 0, 0, 2, 1);
 
