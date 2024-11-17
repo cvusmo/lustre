@@ -1,14 +1,13 @@
 // Copyright 2025 Nicholas Jordan. All Rights Reserved.
 // github.com/cvusmo/lustre
-
-// src/modules/engine/render/vulkan/wayland/core.rs
+// src/modules/render/vulkan/wayland/core.rs
 
 use std::sync::{Arc, Mutex};
-// use std::time::Duration;
+use std::time::Duration;
 use std::collections::HashMap;
 use vulkano::command_buffer::pool::{CommandPool, CommandPoolCreateInfo};
 use vulkano::command_buffer::{
-    AutoCommandBufferBuilder, CommandBufferUsage, PrimaryAutoCommandBuffer, SubpassContents,
+    AutoCommandBufferBuilder, allocator::StandardCommandBufferAllocator, CommandBufferLevel, CommandBufferUsage, PrimaryAutoCommandBuffer, SubpassEndInfo, SubpassBeginInfo,
 };
 use vulkano::device::{
     Device, DeviceCreateInfo, DeviceExtensions, Features, Queue, QueueCreateFlags, QueueCreateInfo,
@@ -45,14 +44,16 @@ use vulkano::VulkanLibrary;
 
 use crate::modules::engine::configuration::logger::{log_error, log_info, AppState};
 
-// #[allow(dead_code)]
+#[allow(dead_code)]
 // VulkanContext struct
 pub struct VulkanContext {
     device: Arc<Device>,
     queue: Arc<Queue>,
+    allocator: Arc<StandardCommandBufferAllocator>,
+    queue_family_index: u32,
     swapchain: Arc<Swapchain>,
     images: Vec<Arc<vulkano::image::Image>>,
-    render_pass: Arc<RenderPass>,
+    build_render_pass: Arc<RenderPass>,
     framebuffers: Vec<Arc<Framebuffer>>,
     command_pool: Arc<CommandPool>,
     command_buffers: Vec<Arc<PrimaryAutoCommandBuffer>>,
@@ -216,7 +217,7 @@ impl VulkanContext {
         .expect("Failed to create swapchain");
 
         // Create render pass
-        let render_pass = VulkanContext::create_render_pass(device.clone());
+        let render_pass = VulkanContext::build_render_pass(device.clone());
 
         // Create Framebuffers
         let framebuffers = VulkanContext::create_framebuffers(render_pass.clone(), &images);
@@ -236,9 +237,11 @@ impl VulkanContext {
         Self {
             device,
             queue,
+            allocator,
+            queue_family_index,
             swapchain,
             images,
-            render_pass,
+            build_render_pass,
             framebuffers,
             command_pool,
             command_buffers,
@@ -346,8 +349,8 @@ impl VulkanContext {
 
         let (image_index, suboptimal, acquire_future) = match swapchain::acquire_next_image(
             self.swapchain.clone(),
-            //Some(Duration::from_secs(1)),
-            None,
+            Some(Duration::from_secs(1)),
+            // None, // no timeout
         ) {
             Ok(result) => result,
             Err(err) => {
@@ -363,24 +366,28 @@ impl VulkanContext {
             return;
         }
 
+        // Store Queue Family Index
+        let queue_family_index = self.queue.family().id();
+
         // Begin Rendering commands
         // let command_buffer = &self.command_buffers[image_index as usize];
         let command_buffer = AutoCommandBufferBuilder::primary(
-            self.device.clone(),
-            self.queue.family(),
+            &self.allocator,
+            queue_family_index,
             CommandBufferUsage::OneTimeSubmit,
         )
         .unwrap()
         .begin_render_pass(
             self.framebuffers[image_index].clone(),
-            SubpassContents::Inline,
+            //SubpassContents::Inline(subpass_begin_info),
+            SubpassBeginInfo::default(),
             vec![[0.0, 0.0, 0.0, 1.0].into()],
         )
         .unwrap()
-        .bind_pipeline_graphics(self.pipeline.clone())
+        .bind_pipeline_graphics(self.pipeline.clone()).expect("REASON")
         .draw(3, 1, 0, 0) // Draw a single triangle
         .unwrap()
-        .end_render_pass()
+        .end_render_pass(SubpassEndInfo::default())
         .unwrap()
         .build()
         .unwrap();
