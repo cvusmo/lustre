@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=lustre
+Comment=lustre - a 3D Voxel based game engine
+Exec=/home/echo/projects/gameengine/target/debug/lustre
+Icon=icon
+Terminal=false
+Type=Application
+Categories=Utility;
