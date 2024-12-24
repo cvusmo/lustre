@@ -22,7 +22,7 @@ This project is in the early stages of development and is **not ready for testin
 - **Scripting:** Lua 5.4 (via `mlua`)
 
 ## License
-Lustre is proprietary software licensed under the terms outlined in the [Proprietary License Agreement](LICENSE.md). This project also incorporates open-source dependencies with their respective licenses detailed in the `THIRD_PARTY_LICENSES.md` file.
+Lustre is proprietary software licensed under the terms outlined in the [Proprietary License Agreement](LICENSE). TODO: (ADD This project also incorporates open-source dependencies with their respective licenses detailed in the `THIRD_PARTY_LICENSES` file.)
 
 ## Logo
 The logo for lustre can be viewed at the following link:
@@ -42,5 +42,4 @@ The logo for lustre can be viewed at the following link:
 - [youtube](https://www.youtube.com/@cvusmo) Not as active as I used to be but plan on uploading Rust/Lua related content starting January 2025. Help me reach monetization by simply subscribing to the channel. Leave a comment and let me know what you'd be interested in. I plan on going through creating this blackbeard-nvim as a series. Then diving into Rust related projects to show how to create basic applications.
 
 ## x
-- [x](https://www.x.com/cvusmo) Follow on x for more of day to day memes, random thoughts, and spicy fresh hot takes.
-
+- [x](https://www.x.com/cvusmo) Follow on x for more of day to day memes, random thoughts, and spicy fresh hot takes. 
