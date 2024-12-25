@@ -5,11 +5,12 @@
 use crate::modules::engine::configuration::config::Config;
 use crate::modules::engine::configuration::logger::{log_debug, log_info, AppState};
 use crate::modules::engine::gui::components::grid::create_grid;
+use crate::modules::engine::gui::components::sidebar::create_sidebar;
 use crate::modules::engine::gui::menu_bar::create_menu_bar;
 use crate::modules::engine::gui::utils::{create_text_editor, load_project_area};
 
 use gtk::{
-    gdk::Display, prelude::*, Application, ApplicationWindow, CssProvider, DrawingArea, Grid, Label,
+    gdk::Display, prelude::*, Application, ApplicationWindow, CssProvider, DrawingArea, Label,
 };
 use gtk4 as gtk;
 use std::{
@@ -44,6 +45,11 @@ pub fn build_ui(
     let grid = create_grid();
     window.set_child(Some(&grid));
 
+    // Add Sidebar
+    log_info(state, "Creating sidebar...");
+    let sidebar = create_sidebar();
+    grid.attach(&sidebar, 0, 1, 1, 2);
+
     // Add project area and set it in AppState
     log_info(state, "Creating project area...");
     let project_area = create_project_area();
@@ -58,6 +64,8 @@ pub fn build_ui(
     // Load an initial empty project
     log_info(state, "Loading initial project area...");
     load_project_area(state, "", create_text_editor);
+
+    // Add Tabs
 
     // Create a drawing area for Vulkan
     log_info(state, "Creating Vulkan drawing area...");
@@ -79,13 +87,6 @@ pub fn build_ui(
 
     window
 }
-
-// TODO: Refactor functions to new submodules and scripts
-// [✘] fn project_area.rs moves to new submodule ~/src/modules/engine/gui/project/project_area.rs
-// [✘] fn load_theme moves to ~/src/modules/engine/configuration/theme.rs
-// [✘] fn load_configuration_path moves to ~/src/modules/engine/configuration/config.rs
-// [✘] fn generate.css && fn apply_css moves to ~/src/modules/engine/configuration/css_generator.rs
-// [✓] fn create_grid to move to ~/src/modules/engine/gui/window/grid.rs
 
 // Create project area
 fn create_project_area() -> gtk::Box {
@@ -115,7 +116,7 @@ fn load_theme(config: &Config, state: &Arc<Mutex<AppState>>) -> (String, String,
 // Loads the configuration
 fn load_configuration_path(state: &Arc<Mutex<AppState>>) -> PathBuf {
     let home_dir = env::var("HOME").unwrap_or_else(|_| String::from("/home/$USER"));
-    let config_file = format!("{}/.config/gameengine/gameengine.conf", home_dir);
+    let config_file = format!("{}/.config/lustre/lustre.conf", home_dir);
     let config_path = Path::new(&config_file);
     log_info(
         state,
@@ -185,7 +186,7 @@ fn apply_css(css: &str, state: &Arc<Mutex<AppState>>) {
 fn create_window(app: &Application) -> ApplicationWindow {
     ApplicationWindow::builder()
         .application(app)
-        .title("gameengine")
+        .title("lustre")
         .css_classes(vec!["window".to_string()])
         .build()
 }

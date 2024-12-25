@@ -23,6 +23,7 @@ use vulkano::pipeline::graphics::{
     discard_rectangle::DiscardRectangleMode,
     discard_rectangle::DiscardRectangleState,
     input_assembly::InputAssemblyState,
+    input_assembly::PrimitiveTopology,
     rasterization::RasterizationState,
     tessellation::TessellationDomainOrigin,
     tessellation::TessellationState,
@@ -64,6 +65,9 @@ pub struct VulkanContext {
     render_finished_semaphore: Arc<Semaphore>,
     in_flight_fence: Arc<Fence>,
     pipeline: Arc<GraphicsPipeline>,
+    grid_pipeline: Arc<GraphicsPipeline>,
+    grid_vertex_buffer: Arc<vulkano::buffer::Buffer<[f32; 3]>>,
+    grid_color_buffer: Arc<vulkano::buffer::Buffer<[f32; 4]>>,
 }
 
 // VulkanContext
@@ -223,17 +227,27 @@ impl VulkanContext {
         // Create render pass
         let render_pass = VulkanContext::build_render_pass(device.clone());
 
-        // Create the pipeline
+        // Create the main (triangle) pipeline
         let pipeline = Self::create_pipeline(&device);
 
-        // Create Framebuffers
-        let framebuffers = VulkanContext::create_framebuffers(render_pass.clone(), &images);
+        // Create line drawing pipeline for grid
+        let grid_pipeline = Self::create_grid_pipeline(&device, render_pass.clone());
+
+        // Generate grid data (positions and colors)
+        let (grid_vertices, grid_colors) = generate_3d_grid(10, 1.0);
+
+        // Create GPU buffers for grid
+        let (grid_vertex_buffer, grid_color_buffer) =
+            Self::create_grid_buffers(&device, grid_vertices, grid_colors);
 
         // Create allocator
         let allocator = Arc::new(StandardCommandBufferAllocator::new(
             device.clone(),
             Default::default(),
         ));
+
+        // Create Framebuffers
+        let framebuffers = VulkanContext::create_framebuffers(render_pass.clone(), &images);
 
         // Create Command Pool and Buffers
         let (command_pool, command_buffers) = VulkanContext::create_command_pool_and_buffers(
@@ -247,11 +261,11 @@ impl VulkanContext {
         let (image_available_semaphore, render_finished_semaphore, in_flight_fence) =
             VulkanContext::create_sync_objects(device.clone());
 
+        // Return the initialized VulkanContext
         Self {
             device,
             queue,
             allocator,
-            // queue_family_index,
             swapchain,
             images,
             render_pass,
@@ -261,6 +275,9 @@ impl VulkanContext {
             render_finished_semaphore,
             in_flight_fence,
             pipeline,
+            grid_pipeline,
+            grid_vertex_buffer,
+            grid_color_buffer,
         }
     }
 
@@ -357,7 +374,7 @@ impl VulkanContext {
         )
     }
 
-    /// Render function
+    // Render function
     pub fn render(&mut self, state: &Arc<Mutex<AppState>>) {
         log_info(state, "Rendering a frame...");
 
@@ -384,7 +401,6 @@ impl VulkanContext {
         let queue_family_index = self.queue.family().id();
 
         // Begin Rendering commands
-        // let command_buffer = &self.command_buffers[image_index as usize];
         let command_buffer = AutoCommandBufferBuilder::primary(
             &self.allocator,
             queue_family_index,
@@ -393,14 +409,27 @@ impl VulkanContext {
         .unwrap()
         .begin_render_pass(
             self.framebuffers[image_index].clone(),
-            //SubpassContents::Inline(subpass_begin_info),
             SubpassBeginInfo::default(),
             vec![[0.0, 0.0, 0.0, 1.0].into()],
         )
         .unwrap()
+        // Draw your main pipeline (e.g., the triangle)
         .bind_pipeline_graphics(self.pipeline.clone())
-        .expect("REASON")
-        .draw(3, 1, 0, 0) // Draw a single triangle
+        .draw(3, 1, 0, 0)
+        .unwrap()
+        // === Now bind & draw the grid pipeline ===
+        .bind_pipeline_graphics(self.grid_pipeline.clone())
+        // If you have separate position & color buffers, they become separate "bindings".
+        // Typically you'd have your shader read `layout(location = 0)` from the first,
+        // and `layout(location = 1)` from the second. Adjust as needed.
+        .bind_vertex_buffers(
+            0,
+            (
+                self.grid_vertex_buffer.clone(),
+                self.grid_color_buffer.clone(),
+            ),
+        )
+        .draw(self.grid_vertex_buffer.len() as u32, 1, 0, 0)
         .unwrap()
         .end_render_pass(SubpassEndInfo::default())
         .unwrap()
@@ -644,8 +673,137 @@ impl VulkanContext {
         // Handle resize logic here
     }
 
-    /// Clean up Vulkan resources
+    // Clean up Vulkan resources
     pub fn cleanup(&self, state: &Arc<Mutex<AppState>>) {
         log_info(state, "Cleaning up Vulkan resources...");
     }
+
+    // Function to create grid pipeline
+    pub fn create_grid_pipeline(
+        device: &Arc<Device>,
+        render_pass: Arc<RenderPass>,
+    ) -> Arc<GraphicsPipeline> {
+        // 1) Load (or reuse) your line vertex & fragment shaders
+        let vertex_shader = Self::load_shader(device.clone(), "shaders/line_vert.spv");
+        let fragment_shader = Self::load_shader(device.clone(), "shaders/line_frag.spv");
+
+        // 2) Create a pipeline layout
+        let pipeline_layout = PipelineLayout::new(device.clone(), Default::default())
+            .expect("Failed to create pipeline layout for grid");
+
+        // 3) Create an InputAssemblyState that uses `LineList`
+        let input_assembly_state = InputAssemblyState {
+            topology: PrimitiveTopology::LineList,
+            ..Default::default()
+        };
+
+        // 4) Hardcode a simple viewport/scissor (in real code, handle dynamic resize properly)
+        let viewport_state = ViewportState::viewport_dynamic_scissor_irrelevant();
+
+        // 5) For a simple line pipeline, you can skip tessellation, geometry, etc.
+        let pipeline_create_info = GraphicsPipelineCreateInfo {
+            stages: vec![
+                vertex_shader.entry_point("main").unwrap().into(),
+                fragment_shader.entry_point("main").unwrap().into(),
+            ]
+            .into(),
+
+            // If your vertex shaders read two separate buffers (positions & colors),
+            // make sure to define the correct `VertexInputState`.
+            vertex_input_state: Some(VertexInputState::new()),
+
+            input_assembly_state: Some(input_assembly_state),
+            viewport_state: Some(viewport_state),
+            rasterization_state: Default::default(),
+            multisample_state: Default::default(),
+            color_blend_state: Default::default(),
+            layout: Arc::new(pipeline_layout),
+            subpass: Some(Subpass::from(render_pass, 0).unwrap()),
+
+            // If you want line width, or other states, you can do so with dynamic states
+            dynamic_state: None,
+
+            ..Default::default()
+        };
+
+        GraphicsPipeline::new(device.clone(), None, pipeline_create_info)
+            .expect("Failed to create grid (line) graphics pipeline")
+    }
+
+    // Generate and return Vulkan-compatible buffers for 3D grid
+    fn create_grid_buffers(
+        &self,
+        vertices: Vec<[f32; 3]>,
+        colors: Vec<[f32; 4]>,
+    ) -> (
+        Arc<vulkano::buffer::Buffer<[f32; 3]>>,
+        Arc<vulkano::buffer::Buffer<[f32; 4]>>,
+    ) {
+        use vulkano::buffer::{Buffer, BufferUsage};
+
+        // Create vertex buffer
+        let vertex_buffer = Buffer::from_iter(
+            self.device.clone(),
+            BufferUsage::vertex_buffer(),
+            false,
+            vertices.into_iter(),
+        )
+        .expect("Failed to create vertex buffer");
+
+        // Create color buffer
+        let color_buffer = Buffer::from_iter(
+            self.device.clone(),
+            BufferUsage::vertex_buffer(),
+            false,
+            colors.into_iter(),
+        )
+        .expect("Failed to create color buffer");
+
+        (vertex_buffer, color_buffer)
+    }
+}
+
+// Generates basic 3D grid with X, Y, and Z axis for rendering
+pub fn generate_3d_grid(grid_size: i32, step: f32) -> (Vec<[f32; 3]>, Vec<[f32; 4]>) {
+    let mut vertices = Vec::new();
+    let mut colors = Vec::new();
+
+    for i in -grid_size..=grid_size {
+        let position = i as f32 * step;
+
+        // Lines parallel to the X-axis
+        vertices.push([position, 0.0, -grid_size as f32 * step]);
+        vertices.push([position, 0.0, grid_size as f32 * step]);
+
+        colors.push([0.5, 0.5, 0.5, 1.0]); // Gray
+        colors.push([0.5, 0.5, 0.5, 1.0]); // Gray
+
+        // Lines parallel to the Z-axis
+        vertices.push([-grid_size as f32 * step, 0.0, position]);
+        vertices.push([grid_size as f32 * step, 0.0, position]);
+
+        colors.push([0.5, 0.5, 0.5, 1.0]); // Gray
+        colors.push([0.5, 0.5, 0.5, 1.0]); // Gray
+    }
+
+    // Axis lines
+    // X-axis
+    vertices.push([0.0, 0.0, 0.0]);
+    vertices.push([grid_size as f32 * step, 0.0, 0.0]);
+    colors.push([1.0, 0.0, 0.0, 1.0]); // Red
+    colors.push([1.0, 0.0, 0.0, 1.0]); // Red
+
+    // Y-axis
+    vertices.push([0.0, 0.0, 0.0]);
+    vertices.push([0.0, grid_size as f32 * step, 0.0]);
+    colors.push([0.0, 1.0, 0.0, 1.0]); // Green
+    colors.push([0.0, 1.0, 0.0, 1.0]); // Green
+
+    // Z-axis
+    vertices.push([0.0, 0.0, 0.0]);
+    vertices.push([0.0, 0.0, grid_size as f32 * step]);
+    colors.push([0.0, 0.0, 1.0, 1.0]); // Blue
+    colors.push([0.0, 0.0, 1.0, 1.0]); // Blue
+
+    (vertices, colors)
 }
