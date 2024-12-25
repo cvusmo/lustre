@@ -1,8 +1,6 @@
 // Copyright 2025 Nicholas Jordan. All Rights Reserved.
 // github.com/cvusmo/lustre
-
-// src/configuration/logger.rs
-// github.com/cvusmo/gameengine
+// src/modules/engine/configuration/logger.rs
 
 use fern::Dispatch;
 use gtk::Label;

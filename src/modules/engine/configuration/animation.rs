@@ -1,15 +1,13 @@
 // Copyright 2025 Nicholas Jordan. All Rights Reserved.
 // github.com/cvusmo/lustre
-
-// src/configuration/animation.rs
-// github.com/cvusmo/gameengine
+// src/modules/engine/configuration/animation.rs
 
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AnimationConfig {
-    pub blur: bool,  
-    pub fade_in: bool, 
+    pub blur: bool,
+    pub fade_in: bool,
 }
 
 impl AnimationConfig {
@@ -19,8 +17,8 @@ impl AnimationConfig {
 
     pub fn default() -> Self {
         AnimationConfig {
-            blur: true,  
-            fade_in: true, 
+            blur: true,
+            fade_in: true,
         }
     }
 

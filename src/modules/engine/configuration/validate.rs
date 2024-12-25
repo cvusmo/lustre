@@ -1,11 +1,9 @@
 // Copyright 2025 Nicholas Jordan. All Rights Reserved.
 // github.com/cvusmo/lustre
+// src/modules/engine/configuration/validate.rs
 
-// src/configuration/validate.rs
-// github.com/cvusmo/gameengine
-
-use std::collections::HashSet;
 use crate::modules::engine::configuration::{animation::AnimationConfig, theme::ThemeConfig};
+use std::collections::HashSet;
 
 // Validation function for animations
 pub fn validate_animations(animations: &[AnimationConfig]) -> Result<(), String> {
@@ -44,7 +42,8 @@ pub fn validate_animations(animations: &[AnimationConfig]) -> Result<(), String>
 // Validation function for theme
 pub fn validate_theme(theme: &ThemeConfig) -> Result<(), String> {
     // Call validate method from theme.rs
-    theme.validate()
+    theme
+        .validate()
         .map_err(|e| format!("Theme validation failed: {}", e))
 }
 

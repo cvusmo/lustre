@@ -1,11 +1,8 @@
 // Copyright 2025 Nicholas Jordan. All Rights Reserved.
 // github.com/cvusmo/lustre
-
-// src/configuration/theme.rs
-// github.com/cvusmo/gameengine
+// src/modules/engine/configuration/theme.rs
 
 use serde::{Deserialize, Serialize};
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ThemeConfig {
     pub background_color: String,
@@ -15,16 +12,16 @@ pub struct ThemeConfig {
 
 impl ThemeConfig {
     pub fn new() -> Self {
-        Self::default() 
+        Self::default()
     }
 }
 
 impl Default for ThemeConfig {
     fn default() -> Self {
         ThemeConfig {
-            background_color: "#000000".to_string(),  // Default background
-            font_color: "#59F87E".to_string(),  // Default font color
-            font_size: 24,  // Default font size
+            background_color: "#000000".to_string(), // Default background
+            font_color: "#59F87E".to_string(),       // Default font color
+            font_size: 24,                           // Default font size
         }
     }
 }
