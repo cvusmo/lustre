@@ -1,3 +1,6 @@
+// Copyright 2025 Nicholas Jordan. All Rights Reserved.
+// github.com/cvusmo/lustre
+
 use clap::{Arg, Command};
 use gtk::{glib, prelude::*, Application};
 use gtk4 as gtk;
@@ -5,13 +8,13 @@ use mlua::prelude::*;
 use std::fs;
 use std::sync::{Arc, Mutex};
 
-use gameengine::create_state;
-use gameengine::modules::engine::configuration::config::Config;
-use gameengine::modules::engine::configuration::logger::{log_error, AppState};
-use gameengine::modules::engine::gui;
-use gameengine::modules::engine::gui::editor::lua_editor::register_lua_functions;
+use lustre::create_state;
+use lustre::modules::engine::configuration::config::Config;
+use lustre::modules::engine::configuration::logger::{log_error, AppState};
+use lustre::modules::engine::gui;
+use lustre::modules::engine::gui::editor::lua_editor::register_lua_functions;
 
-const APP_ID: &str = "org.cvusmo.gameengine";
+const APP_ID: &str = "org.cvusmo.lustre";
 
 fn main() -> glib::ExitCode {
     if let Err(e) = gtk::init() {
@@ -107,4 +110,3 @@ fn run_main(app: &Application, state: &Arc<Mutex<AppState>>, config_file: Option
     let window = gui::window::build_ui(app, &config, state);
     window.present();
 }
-

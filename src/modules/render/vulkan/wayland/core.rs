@@ -1,11 +1,14 @@
-// src/modules/engine/render/vulkan/wayland/core.rs
+// Copyright 2025 Nicholas Jordan. All Rights Reserved.
+// github.com/cvusmo/lustre
+// src/modules/render/vulkan/wayland/core.rs
 
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
-// use std::time::Duration;
-use std::collections::HashMap;
+use std::time::Duration;
 use vulkano::command_buffer::pool::{CommandPool, CommandPoolCreateInfo};
 use vulkano::command_buffer::{
-    AutoCommandBufferBuilder, CommandBufferUsage, PrimaryAutoCommandBuffer, SubpassContents,
+    allocator::StandardCommandBufferAllocator, AutoCommandBufferBuilder, CommandBufferLevel,
+    CommandBufferUsage, PrimaryAutoCommandBuffer, SubpassBeginInfo, SubpassEndInfo,
 };
 use vulkano::device::{
     Device, DeviceCreateInfo, DeviceExtensions, Features, Queue, QueueCreateFlags, QueueCreateInfo,
@@ -15,18 +18,22 @@ use vulkano::format::Format;
 use vulkano::image::view::{ImageView, ImageViewCreateInfo};
 use vulkano::image::ImageUsage;
 use vulkano::instance::Instance;
-use vulkano::pipeline::DynamicState;
 use vulkano::pipeline::graphics::{
     color_blend::ColorBlendState,
+    discard_rectangle::DiscardRectangleMode,
+    discard_rectangle::DiscardRectangleState,
     input_assembly::InputAssemblyState,
     rasterization::RasterizationState,
     tessellation::TessellationDomainOrigin,
     tessellation::TessellationState,
-    vertex_input::{Vertex, VertexBufferDescription, VertexMemberInfo, VertexInputRate, VertexInputState},
-    viewport::{Viewport, ViewportState},
+    vertex_input::{
+        Vertex, VertexBufferDescription, VertexInputRate, VertexInputState, VertexMemberInfo,
+    },
+    viewport::{Scissor, Viewport, ViewportState},
     GraphicsPipeline, GraphicsPipelineCreateInfo,
 };
 use vulkano::pipeline::layout::PipelineLayout;
+use vulkano::pipeline::DynamicState;
 use vulkano::pipeline::PipelineCreateFlags;
 use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass};
 use vulkano::shader::{ShaderModule, ShaderModuleCreateInfo};
@@ -47,15 +54,16 @@ use crate::modules::engine::configuration::logger::{log_error, log_info, AppStat
 pub struct VulkanContext {
     device: Arc<Device>,
     queue: Arc<Queue>,
+    allocator: Arc<StandardCommandBufferAllocator>,
     swapchain: Arc<Swapchain>,
     images: Vec<Arc<vulkano::image::Image>>,
     render_pass: Arc<RenderPass>,
     framebuffers: Vec<Arc<Framebuffer>>,
-    command_pool: Arc<CommandPool>,
     command_buffers: Vec<Arc<PrimaryAutoCommandBuffer>>,
     image_available_semaphore: Arc<Semaphore>,
     render_finished_semaphore: Arc<Semaphore>,
     in_flight_fence: Arc<Fence>,
+    pipeline: Arc<GraphicsPipeline>,
 }
 
 // VulkanContext
@@ -75,7 +83,7 @@ impl VulkanContext {
         let _layers: Vec<_> = library
             .layer_properties()
             .unwrap_or_else(|err| panic!("Failed to retrieve Vulkan layer properties: {:?}", err))
-            .filter(|l| l.name() == "gameengine_layer")
+            .filter(|l| l.name() == "lustre_layer")
             .collect();
 
         // Create instance
@@ -213,10 +221,19 @@ impl VulkanContext {
         .expect("Failed to create swapchain");
 
         // Create render pass
-        let render_pass = VulkanContext::create_render_pass(device.clone());
+        let render_pass = VulkanContext::build_render_pass(device.clone());
+
+        // Create the pipeline
+        let pipeline = Self::create_pipeline(&device);
 
         // Create Framebuffers
         let framebuffers = VulkanContext::create_framebuffers(render_pass.clone(), &images);
+
+        // Create allocator
+        let allocator = Arc::new(StandardCommandBufferAllocator::new(
+            device.clone(),
+            Default::default(),
+        ));
 
         // Create Command Pool and Buffers
         let (command_pool, command_buffers) = VulkanContext::create_command_pool_and_buffers(
@@ -233,15 +250,17 @@ impl VulkanContext {
         Self {
             device,
             queue,
+            allocator,
+            // queue_family_index,
             swapchain,
             images,
             render_pass,
             framebuffers,
-            command_pool,
             command_buffers,
             image_available_semaphore,
             render_finished_semaphore,
             in_flight_fence,
+            pipeline,
         }
     }
 
@@ -311,7 +330,8 @@ impl VulkanContext {
         // #[warn(unused_mut)]
         let command_buffers = Vec::new();
 
-        for _framebuffer in framebuffers {
+        #[warn(unused_variables)]
+        for framebuffer in framebuffers {
             // framebuffer
             println!("Placeholder for framebuffer.");
         }
@@ -343,8 +363,8 @@ impl VulkanContext {
 
         let (image_index, suboptimal, acquire_future) = match swapchain::acquire_next_image(
             self.swapchain.clone(),
-            //Some(Duration::from_secs(1)),
-            None,
+            Some(Duration::from_secs(1)),
+            // None, // no timeout
         ) {
             Ok(result) => result,
             Err(err) => {
@@ -360,24 +380,29 @@ impl VulkanContext {
             return;
         }
 
+        // Store Queue Family Index
+        let queue_family_index = self.queue.family().id();
+
         // Begin Rendering commands
         // let command_buffer = &self.command_buffers[image_index as usize];
         let command_buffer = AutoCommandBufferBuilder::primary(
-            self.device.clone(),
-            self.queue.family(),
+            &self.allocator,
+            queue_family_index,
             CommandBufferUsage::OneTimeSubmit,
         )
         .unwrap()
         .begin_render_pass(
             self.framebuffers[image_index].clone(),
-            SubpassContents::Inline,
+            //SubpassContents::Inline(subpass_begin_info),
+            SubpassBeginInfo::default(),
             vec![[0.0, 0.0, 0.0, 1.0].into()],
         )
         .unwrap()
         .bind_pipeline_graphics(self.pipeline.clone())
+        .expect("REASON")
         .draw(3, 1, 0, 0) // Draw a single triangle
         .unwrap()
-        .end_render_pass()
+        .end_render_pass(SubpassEndInfo::default())
         .unwrap()
         .build()
         .unwrap();
@@ -472,9 +497,9 @@ impl VulkanContext {
         members.insert(
             "position".to_string(),
             VertexMemberInfo {
-            offset: 0,
-            format: Format::R32G32B32_SFLOAT, // vec3 (xyz)
-            num_elements: 1,
+                offset: 0,
+                format: Format::R32G32B32_SFLOAT, // vec3 (xyz)
+                num_elements: 1,
             },
         );
         members.insert(
@@ -487,7 +512,7 @@ impl VulkanContext {
         );
 
         // Define Vertex Buffer Description
-        let vertex_buffer_description = VertexBufferDescription { 
+        let vertex_buffer_description = VertexBufferDescription {
             members,
             stride: 28, // Total size of one vertex (3 floats + 4 floats = 7 * 4 bytes)
             input_rate: VertexInputRate::Vertex,
@@ -506,6 +531,17 @@ impl VulkanContext {
         // Create ShaderModule
         ShaderModule::new(device.clone(), ShaderModuleCreateInfo::new(shader_code_32))
             .expect("Failed to create shader module")
+    }
+
+    // Function to create compute pipeline
+    pub fn create_compute_pipeline() {
+        println!("Computing pipeline. Nailed it.");
+
+        // flags: PipelineCreateFlags,
+        // stage: PipelineShaderStageCreateInfo,
+        // layout: Arc<PipelineLayout>,
+        // base_pipeline: Option<Arc<ComputePipeline>>,
+        // ..Default::default,
     }
 
     // Function to Create Pipeline
@@ -529,7 +565,17 @@ impl VulkanContext {
         };
 
         // Call Vertex Buffer Description
-        let vertex_buffer_description = create_vertex_buffer_description();
+        let vertex_buffer_description = Self::create_vertex_buffer_description();
+
+        // Call create_compute_pipeline
+        let compute_pipeline = Self::create_compute_pipeline();
+        compute_pipeline;
+
+        // Define scissor
+        let scissor_state = Scissor {
+            offset: [0; 2], // Coordinates of top-left hand corner
+            extent: [8; 2], // Dimensions of the box
+        };
 
         // Define PipelineCreateFlags
         let pipeline_create_flags =
@@ -546,28 +592,45 @@ impl VulkanContext {
         let viewport_state = ViewportState::default();
 
         // Define Dynamic State
-        let dynamic_state = DynamicState:: 
+        let mut dynamic_state = HashSet::new();
+        dynamic_state.insert(DynamicState::Viewport); // Dynamic Viewport
+        dynamic_state.insert(DynamicState::Scissor); // Dynamic scissor
+        dynamic_state.insert(DynamicState::LineWidth);
+        dynamic_state.insert(DynamicState::DepthTestEnable);
+
+        // Define Base Pipeline
+        let base_pipeline = None; // DO NOT SET BASE PIPELINE KEEP IT AS NONE, RM
+
+        // Define Discard Rectangle State
+        let discard_rectangle_state = DiscardRectangleState {
+            mode: DiscardRectangleMode::Exclusive,
+            rectangles: vec![], // empty vector.. figure out how to set dynamically
+            ..Default::default()
+        };
 
         // Create the pipeline
         let pipeline_create_info = GraphicsPipelineCreateInfo {
             flags: pipeline_create_flags,
+            stages: vec![
+                vertex_shader.entry_point("main").unwrap().into(),
+                fragment_shader.entry_point("main").unwrap().into(),
+            ]
+            .into(),
             //vertex_input_state: Some(VertexInputState::new()),
-            vertex_input_state: Some(vertex_buffer_description.into()),
+            vertex_input_state: Some(vertex_buffer_description()), //.into()),
             input_assembly_state: Some(InputAssemblyState::default()),
             tessellation_state: Some(tessellation_state),
             viewport_state: Some(viewport_state),
             rasterization_state: Default::default(),
             multisample_state: Default::default(),
             color_blend_state: Default::default(),
-            dynamic_state: 
+            dynamic_state: Some(dynamic_state),
             depth_stencil_state: Default::default(),
             layout: Arc::new(pipeline_layout),
             subpass: Some(Subpass::from(render_pass, 0).unwrap()),
-            stages: vec![
-                vertex_shader.entry_point("main").unwrap().into(),
-                fragment_shader.entry_point("main").unwrap().into(),
-            ]
-            .into(),
+            base_pipeline,
+            discard_rectangle_state: Some(discard_rectangle_state),
+            ..Default::default()
         };
 
         // Create graphics pipeline

@@ -1,3 +1,6 @@
+// Copyright 2025 Nicholas Jordan. All Rights Reserved.
+// github.com/cvusmo/lustre
+
 // src/configuration/general.rs
 // github.com/cvusmo/gameengine
 
@@ -24,4 +27,3 @@ impl GeneralConfig {
         }
     }
 }
-
