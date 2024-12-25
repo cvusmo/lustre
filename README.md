@@ -22,7 +22,7 @@ This project is in the early stages of development and is **not ready for testin
 - **Scripting:** Lua 5.4 (via `mlua`)
 
 ## License
-Lustre is proprietary software licensed under the terms outlined in the [Proprietary License Agreement](LICENSE). TODO: (ADD This project also incorporates open-source dependencies with their respective licenses detailed in the `THIRD_PARTY_LICENSES` file.)
+Lustre is proprietary software licensed under the terms outlined in the [Proprietary License Agreement](LICENSE). This project also incorporates open-source dependencies with their respective licenses detailed in the [Third Party Licenses](THIRD_PARTY_LICENSES) file.
 
 ## Logo
 The logo for lustre can be viewed at the following link:
