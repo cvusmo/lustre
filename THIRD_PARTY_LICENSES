@@ -1,19 +1,78 @@
-[1;32m(Apache-2.0 OR MIT) AND BSD-3-Clause[0m (1): encoding_rs
-[1;32m(MIT OR Apache-2.0) AND Unicode-3.0[0m (1): unicode-ident
-[1;32mApache-2.0[0m (6): ab_glyph, ab_glyph_rasterizer, dpi, gethostname, owned_ttf_parser, winit
-[1;32mApache-2.0 OR Apache-2.0 WITH LLVM-exception OR MIT[0m (3): linux-raw-sys, rustix, wasi
-[1;32mApache-2.0 OR BSD-2-Clause OR MIT[0m (2): zerocopy, zerocopy-derive
-[1;32mApache-2.0 OR BSD-3-Clause OR MIT[0m (2): num_enum, num_enum_derive
-[1;32mApache-2.0 OR BSL-1.0[0m (1): ryu
-[1;32mApache-2.0 OR MIT[0m (188): ahash, android-activity, android-tzdata, android_system_properties, anstream, anstyle, anstyle-parse, anstyle-query, anstyle-wincon, arraydeque, arrayvec, as-raw-xcb-connection, ash, async-trait, atomic-waker, autocfg, base64, bitflags, bitflags, block-buffer, bstr, bumpalo, cc, cesu8, cfg-expr, cfg-if, chrono, clap, clap_builder, clap_lex, colorchoice, concurrent-queue, config, const-random, const-random-macro, core-foundation, core-foundation-sys, core-graphics, core-graphics-types, cpufeatures, crossbeam-queue, crossbeam-utils, crypto-common, digest, dirs, dirs-sys, dlv-list, downcast-rs, either, equivalent, errno, field-offset, foreign-types, foreign-types-macros, foreign-types-shared, futures-channel, futures-core, futures-executor, futures-io, futures-macro, futures-task, futures-util, getrandom, half, hashbrown, hashbrown, hashlink, heck, heck, hermit-abi, iana-time-zone, iana-time-zone-haiku, indexmap, is_terminal_polyfill, itoa, jni, jni-sys, jobserver, js-sys, libc, lock_api, log, memmap2, ndk, ndk-context, ndk-sys, num-traits, once_cell, parking_lot, parking_lot_core, pathdiff, percent-encoding, pest, pest_derive, pest_generator, pest_meta, pin-project, pin-project-internal, pin-project-lite, pin-utils, pkg-config, polling, proc-macro-crate, proc-macro-crate, proc-macro2, quote, regex, regex-automata, regex-syntax, ron, rustc-hash, rustc_version, scoped-tls, scopeguard, semver, serde, serde_derive, serde_json, serde_spanned, sha2, shlex, smallvec, smol_str, syn, syn, system-deps, thiserror, thiserror, thiserror-impl, thiserror-impl, thread_local, toml, toml_datetime, toml_edit, toml_edit, ttf-parser, typenum, ucd-trie, unicode-segmentation, utf8parse, version_check, vk-parse, vulkano, vulkano-macros, wasm-bindgen, wasm-bindgen-backend, wasm-bindgen-futures, wasm-bindgen-macro, wasm-bindgen-macro-support, wasm-bindgen-shared, web-sys, web-time, winapi, winapi-i686-pc-windows-gnu, winapi-x86_64-pc-windows-gnu, windows-core, windows-sys, windows-sys, windows-sys, windows-sys, windows-targets, windows-targets, windows-targets, windows_aarch64_gnullvm, windows_aarch64_gnullvm, windows_aarch64_gnullvm, windows_aarch64_msvc, windows_aarch64_msvc, windows_aarch64_msvc, windows_i686_gnu, windows_i686_gnu, windows_i686_gnu, windows_i686_gnullvm, windows_i686_msvc, windows_i686_msvc, windows_i686_msvc, windows_x86_64_gnu, windows_x86_64_gnu, windows_x86_64_gnu, windows_x86_64_gnullvm, windows_x86_64_gnullvm, windows_x86_64_gnullvm, windows_x86_64_msvc, windows_x86_64_msvc, windows_x86_64_msvc, x11rb, x11rb-protocol, yaml-rust2
-[1;32mApache-2.0 OR MIT OR Zlib[0m (6): bytemuck, bytemuck_derive, cursor-icon, raw-window-handle, raw-window-handle, xkeysym
-[1;32mApache-2.0 WITH LLVM-exception[0m (1): target-lexicon
-[1;32mBSD-2-Clause[0m (1): arrayref
-[1;32mBSD-3-Clause[0m (2): tiny-skia, tiny-skia-path
-[1;32mCC0-1.0[0m (1): tiny-keccak
-[1;32mISC[0m (3): json5, libloading, libloading
-[1;32mMIT[0m (92): android-properties, block2, bytes, cairo-rs, cairo-sys-rs, calloop, calloop-wayland-source, cfg_aliases, combine, convert_case, crunchy, dispatch, dlib, fern, gdk-pixbuf, gdk-pixbuf-sys, gdk4, gdk4-sys, gdk4-wayland, gdk4-wayland-sys, gdk4-x11, gdk4-x11-sys, generic-array, gio, gio-sys, glib, glib-macros, glib-sys, gobject-sys, graphene-rs, graphene-sys, gsk4, gsk4-sys, gtk4, gtk4-macros, gtk4-sys, libredox, malloc_buf, memoffset, mlua, mlua-sys, objc, objc-sys, objc2, objc2-app-kit, objc2-cloud-kit, objc2-contacts, objc2-core-data, objc2-core-image, objc2-core-location, objc2-encode, objc2-foundation, objc2-link-presentation, objc2-metal, objc2-quartz-core, objc2-symbols, objc2-ui-kit, objc2-uniform-type-identifiers, objc2-user-notifications, orbclient, ordered-multimap, pango, pango-sys, quick-xml, redox_syscall, redox_syscall, redox_users, rust-ini, sctk-adwaita, slab, smithay-client-toolkit, strict-num, strsim, tracing, tracing-core, trim-in-place, version-compare, wayland-backend, wayland-client, wayland-csd-frame, wayland-cursor, wayland-protocols, wayland-protocols-plasma, wayland-protocols-wlr, wayland-scanner, wayland-sys, winnow, winnow, x11-dl, xcursor, xkbcommon-dl, xml-rs
-[1;32mMIT OR Unlicense[0m (5): aho-corasick, memchr, same-file, walkdir, winapi-util
-[1;32mMPL-2.0[0m (1): option-ext
-[1;32mN/A[0m (1): lustre
+# Third-Party Licenses
 
+This project uses the following open-source dependencies under their respective licenses:
+
+## License Summary
+
+### (Apache-2.0 OR MIT) AND BSD-3-Clause
+- `encoding_rs`
+
+### (MIT OR Apache-2.0) AND Unicode-3.0
+- `unicode-ident`
+
+### Apache-2.0
+- `ab_glyph`
+- `ab_glyph_rasterizer`
+- `dpi`
+- `gethostname`
+- `owned_ttf_parser`
+- `winit`
+
+### Apache-2.0 OR Apache-2.0 WITH LLVM-exception OR MIT
+- `linux-raw-sys`
+- `rustix`
+- `wasi`
+
+### Apache-2.0 OR BSD-2-Clause OR MIT
+- `zerocopy`
+- `zerocopy-derive`
+
+### Apache-2.0 OR BSD-3-Clause OR MIT
+- `num_enum`
+- `num_enum_derive`
+
+### Apache-2.0 OR BSL-1.0
+- `ryu`
+
+### Apache-2.0 OR MIT
+- `ahash`, `android-activity`, `android-tzdata`, `android_system_properties`, `anstream`, `anstyle`, `anstyle-parse`, `anstyle-query`, `anstyle-wincon`, `arraydeque`, `arrayvec`, `as-raw-xcb-connection`, `ash`, `async-trait`, `atomic-waker`, `autocfg`, `base64`, `bitflags`, `block-buffer`, `bstr`, `bumpalo`, `cc`, `cesu8`, `cfg-expr`, `cfg-if`, `chrono`, `clap`, `clap_builder`, `clap_lex`, `colorchoice`, `concurrent-queue`, `config`, `const-random`, `const-random-macro`, `core-foundation`, `core-foundation-sys`, `core-graphics`, `core-graphics-types`, `cpufeatures`, `crossbeam-queue`, `crossbeam-utils`, `crypto-common`, `digest`, `dirs`, `dirs-sys`, `dlv-list`, `downcast-rs`, `either`, `equivalent`, `errno`, `field-offset`, `foreign-types`, `foreign-types-macros`, `foreign-types-shared`, `futures-channel`, `futures-core`, `futures-executor`, `futures-io`, `futures-macro`, `futures-task`, `futures-util`, `getrandom`, `half`, `hashbrown`, `hashlink`, `heck`, `hermit-abi`, `iana-time-zone`, `iana-time-zone-haiku`, `indexmap`, `is_terminal_polyfill`, `itoa`, `jni`, `jni-sys`, `jobserver`, `js-sys`, `libc`, `lock_api`, `log`, `memmap2`, `ndk`, `ndk-context`, `ndk-sys`, `num-traits`, `once_cell`, `parking_lot`, `parking_lot_core`, `pathdiff`, `percent-encoding`, `pest`, `pest_derive`, `pest_generator`, `pest_meta`, `pin-project`, `pin-project-internal`, `pin-project-lite`, `pin-utils`, `pkg-config`, `polling`, `proc-macro-crate`, `proc-macro2`, `quote`, `regex`, `regex-automata`, `regex-syntax`, `ron`, `rustc-hash`, `rustc_version`, `scoped-tls`, `scopeguard`, `semver`, `serde`, `serde_derive`, `serde_json`, `serde_spanned`, `sha2`, `shlex`, `smallvec`, `smol_str`, `syn`, `system-deps`, `thiserror`, `thread_local`, `toml`, `toml_datetime`, `toml_edit`, `ttf-parser`, `typenum`, `ucd-trie`, `unicode-segmentation`, `utf8parse`, `version_check`, `vk-parse`, `vulkano`, `vulkano-macros`, `wasm-bindgen`, `wasm-bindgen-backend`, `wasm-bindgen-futures`, `wasm-bindgen-macro`, `wasm-bindgen-macro-support`, `wasm-bindgen-shared`, `web-sys`, `web-time`, `winapi`, `windows-core`, `windows-sys`, `x11rb`, `yaml-rust2`
+
+### Apache-2.0 OR MIT OR Zlib
+- `bytemuck`
+- `bytemuck_derive`
+- `cursor-icon`
+- `raw-window-handle`
+- `xkeysym`
+
+### Apache-2.0 WITH LLVM-exception
+- `target-lexicon`
+
+### BSD-2-Clause
+- `arrayref`
+
+### BSD-3-Clause
+- `tiny-skia`
+- `tiny-skia-path`
+
+### CC0-1.0
+- `tiny-keccak`
+
+### ISC
+- `json5`
+- `libloading`
+
+### MIT
+- `android-properties`, `block2`, `bytes`, `cairo-rs`, `cairo-sys-rs`, `calloop`, `calloop-wayland-source`, `cfg_aliases`, `combine`, `convert_case`, `crunchy`, `dispatch`, `dlib`, `fern`, `gdk-pixbuf`, `gdk-pixbuf-sys`, `gdk4`, `gdk4-sys`, `gdk4-wayland`, `gdk4-wayland-sys`, `gdk4-x11`, `gdk4-x11-sys`, `generic-array`, `gio`, `glib`, `glib-macros`, `glib-sys`, `gobject-sys`, `graphene-rs`, `graphene-sys`, `gsk4`, `gtk4`, `gtk4-macros`, `libredox`, `malloc_buf`, `mlua`, `mlua-sys`, `objc`, `objc-sys`, `orbclient`, `pango`, `quick-xml`, `redox_syscall`, `rust-ini`, `smithay-client-toolkit`, `strsim`, `tracing`, `version-compare`, `wayland-backend`, `wayland-client`, `wayland-protocols`, `wayland-sys`, `x11-dl`
+
+### MIT OR Unlicense
+- `aho-corasick`
+- `memchr`
+- `same-file`
+- `walkdir`
+- `winapi-util`
+
+### MPL-2.0
+- `option-ext`
+
+### N/A
+- `lustre`
