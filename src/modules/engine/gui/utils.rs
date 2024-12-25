@@ -1,8 +1,6 @@
 // Copyright 2025 Nicholas Jordan. All Rights Reserved.
 // github.com/cvusmo/lustre
-
 // src/modules/engine/gui/utils.rs
-// github.com/cvusmo/gameengine
 
 use crate::modules::engine::configuration::logger::{log_error, log_info, AppState};
 use glib::source::timeout_add_local;

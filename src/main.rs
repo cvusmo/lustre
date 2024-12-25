@@ -1,5 +1,6 @@
 // Copyright 2025 Nicholas Jordan. All Rights Reserved.
 // github.com/cvusmo/lustre
+// src/main.rs
 
 use clap::{Arg, Command};
 use gtk::{glib, prelude::*, Application};
@@ -40,9 +41,9 @@ fn main() -> glib::ExitCode {
         return glib::ExitCode::FAILURE;
     }
     // Command-line argument parsing
-    let matches = Command::new("gameengine")
-        .version("0.0.1")
-        .about("gameengine - A voxel game engine")
+    let matches = Command::new("lustre")
+        .version("0.0.1.0")
+        .about("lustre - A voxel game engine")
         .arg(
             Arg::new("script")
                 .help("Path to the Lua script to execute")
