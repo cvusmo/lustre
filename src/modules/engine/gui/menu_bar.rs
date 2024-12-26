@@ -20,7 +20,6 @@ pub fn create_menu_bar(
     state: &Arc<Mutex<AppState>>,
     parent: &Arc<ApplicationWindow>,
     app: &Application,
-    //vulkan_context: &Arc<Mutex<VulkanContext>>,
 ) -> GtkBox {
     log_info(state, "Creating menu bar...");
 
@@ -120,22 +119,6 @@ pub fn create_menu_bar(
     });
 
     // Render Project Button
-    //let render_button = Button::with_label("Render");
-    //project_box.append(&render_button);
-    //let state_clone_render = Arc::clone(state);
-    //let vulkan_context_clone = Arc::clone(vulkan_context);
-    //render_button.connect_clicked(move |_| {
-    // Calls rendering and logs
-    //log_info(&state_clone_render, "Rendering project...");
-    //if let Ok(mut vulkan_context) = vulkan_context_clone.lock() {
-    //vulkan_context.render(&state_clone_render);
-    //} else {
-    //log_error(
-    //&state_clone_render,
-    //"Failed to lock Vulkan context for rendering.",
-    //);
-    //}
-    //});
 
     project_popover.set_child(Some(&project_box));
     project_button.set_popover(Some(&project_popover));

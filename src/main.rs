@@ -9,9 +9,8 @@ use mlua::prelude::*;
 use std::fs;
 use std::sync::{Arc, Mutex};
 
-use lustre::create_state;
 use lustre::modules::engine::configuration::config::Config;
-use lustre::modules::engine::configuration::logger::{log_error, AppState};
+use lustre::modules::engine::configuration::logger::{create_state, log_error, AppState};
 use lustre::modules::engine::gui;
 use lustre::modules::engine::gui::editor::lua_editor::register_lua_functions;
 

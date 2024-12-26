@@ -1,8 +1,6 @@
 // Copyright 2025 Nicholas Jordan. All Rights Reserved.
 // github.com/cvusmo/lustre
-
-//src/modules/engine/configuration/mod.rs
-//github.com/cvusmo/gameengine
+// src/modules/engine/configuration.rs
 
 pub mod animation;
 pub mod config;

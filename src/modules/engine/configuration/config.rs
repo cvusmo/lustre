@@ -20,6 +20,7 @@ pub struct Config {
     pub theme: ThemeConfig,
 }
 
+// impl Default for Config
 impl Config {
     // Default configuration
     pub fn new() -> Self {

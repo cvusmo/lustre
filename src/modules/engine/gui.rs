@@ -1,5 +1,6 @@
 // Copyright 2025 Nicholas Jordan. All Rights Reserved.
 // github.com/cvusmo/lustre
+// src/modules/engine/gui.rs
 
 pub mod components;
 pub mod editor;

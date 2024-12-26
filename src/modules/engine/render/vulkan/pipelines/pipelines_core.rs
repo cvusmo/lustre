@@ -1,4 +1,3 @@
 // Copyright 2025 Nicholas Jordan. All Rights Reserved.
 // github.com/cvusmo/lustre
-
-pub mod vulkan;
+// src/modules/engine/render/vulkan/pipelines/pipelines_core.rs

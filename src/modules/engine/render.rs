@@ -1,7 +1,5 @@
 // Copyright 2025 Nicholas Jordan. All Rights Reserved.
 // github.com/cvusmo/lustre
-// src/lib.rs
+// src/modules/engine/render.rs
 
-// Create lib
-
-pub mod modules;
+pub mod vulkan;
