@@ -1,0 +1,89 @@
+// Copyright 2025 Nicholas Jordan. All Rights Reserved.
+// github.com/cvusmo/lustre
+// src/state.rs
+
+use fern::Dispatch;
+use mlua::prelude::*;
+use once_cell::sync::OnceCell;
+use std::{
+    error::Error,
+    fs::File,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
+
+static STATE_INITIALIZED: OnceCell<bool> = OnceCell::new();
+
+/// Represents the application's state.
+pub struct AppState {
+    pub project_path: Option<PathBuf>,
+    pub lua: Arc<Mutex<Lua>>,
+    pub is_modified: bool,
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        Self {
+            project_path: None,
+            lua: Arc::new(Mutex::new(Lua::new())),
+            is_modified: false,
+        }
+    }
+}
+
+/// Initializes the application state along with logging.
+pub fn initialize_state(
+    log_file_path: &str,
+    log_level: log::LevelFilter,
+) -> Result<(), Box<dyn Error>> {
+    let log_file = File::create(log_file_path)?;
+
+    Dispatch::new()
+        .format(|out, message, record| {
+            let module = record.target().split("::").last().unwrap_or("unknown");
+            let line = record
+                .line()
+                .map_or("unknown".to_string(), |l| l.to_string());
+            out.finish(format_args!(
+                "[{}] {}, {}:{}",
+                record.level(),
+                message,
+                module,
+                line
+            ))
+        })
+        .level(log_level)
+        .chain(std::io::stdout())
+        .chain(log_file)
+        .apply()?;
+
+    println!("Logger successfully initialized...");
+
+    STATE_INITIALIZED.set(true).unwrap();
+    Ok(())
+}
+
+/// Creates the initial application state.
+pub fn create_state() -> Arc<Mutex<AppState>> {
+    Arc::new(Mutex::new(AppState::default()))
+}
+
+/// Logs an informational message.
+pub fn log_info(message: &str) {
+    log::info!("{}", message);
+}
+
+/// Logs a debug message.
+pub fn log_debug(message: &str) {
+    log::debug!("{}", message);
+}
+
+/// Logs a warning message.
+pub fn log_warn(message: &str) {
+    log::warn!("{}", message);
+}
+
+/// Logs an error message.
+pub fn log_error(message: &str) {
+    log::error!("{}", message);
+}

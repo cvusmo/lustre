@@ -2,111 +2,66 @@
 // github.com/cvusmo/lustre
 // src/main.rs
 
-use clap::{Arg, Command};
-use gtk::{glib, prelude::*, Application};
-use gtk4 as gtk;
-use mlua::prelude::*;
-use std::fs;
-use std::sync::{Arc, Mutex};
+use lustre::lustrerender::lustrerender;
+use winit::application::ApplicationHandler;
+use winit::event::WindowEvent;
+use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::window::{Window, WindowId};
 
-use lustre::modules::engine::configuration::config::Config;
-use lustre::modules::engine::configuration::logger::{create_state, log_error, AppState};
-use lustre::modules::engine::gui;
-use lustre::modules::engine::gui::editor::lua_editor::register_lua_functions;
-
-const APP_ID: &str = "org.cvusmo.lustre";
-
-fn main() -> glib::ExitCode {
-    if let Err(e) = gtk::init() {
-        eprintln!("Failed to initialize GTK: {}", e);
-        return glib::ExitCode::FAILURE;
-    }
-    let lua = Lua::new();
-    let state = create_state();
-
-    // Register Lua functions from lua_editor
-    if let Err(e) = register_lua_functions(&lua, Arc::clone(&state)) {
-        eprintln!("Failed to register Lua functions: {}", e);
-        return glib::ExitCode::FAILURE;
-    }
-
-    // Example Lua function registration (addition)
-    if let Err(e) = lua.globals().set(
-        "add",
-        lua.create_function(|_, (a, b): (i32, i32)| Ok(a + b))
-            .unwrap(),
-    ) {
-        eprintln!("Failed to set Lua global: {}", e);
-        return glib::ExitCode::FAILURE;
-    }
-    // Command-line argument parsing
-    let matches = Command::new("lustre")
-        .version("0.0.1.0")
-        .about("lustre - A voxel game engine")
-        .arg(
-            Arg::new("script")
-                .help("Path to the Lua script to execute")
-                .value_name("SCRIPT")
-                .required(false)
-                .index(1),
-        )
-        .arg(
-            Arg::new("gui")
-                .short('g')
-                .long("gui")
-                .help("Launch the GUI")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .arg(
-            Arg::new("config")
-                .short('c')
-                .long("config")
-                .help("Specifies a custom config file")
-                .value_name("gameengine.conf")
-                .num_args(1),
-        )
-        .get_matches();
-
-    let config_file = matches.get_one::<String>("config").cloned();
-
-    // Determine whether to run the GUI or execute a script
-    if matches.get_flag("gui") || matches.get_one::<String>("script").is_none() {
-        // Launch GUI mode
-        let app = Application::builder().application_id(APP_ID).build();
-        app.connect_activate(move |app| run_main(app, &state, config_file.clone()));
-        app.run();
-    } else if let Some(script_path) = matches.get_one::<String>("script") {
-        // Execute the Lua script
-        match fs::read_to_string(script_path) {
-            Ok(script_content) => {
-                if let Err(err) = lua.load(&script_content).exec() {
-                    eprintln!("Failed to execute Lua script: {}", err);
-                    return glib::ExitCode::FAILURE;
-                } else {
-                    println!("Lua script executed successfully.");
-                }
-            }
-            Err(err) => {
-                eprintln!("Failed to read Lua script at '{}': {}", script_path, err);
-                return glib::ExitCode::FAILURE;
-            }
-        }
-    }
-
-    glib::ExitCode::SUCCESS
+#[derive(Default)]
+struct App {
+    window: Option<Window>,
 }
 
-fn run_main(app: &Application, state: &Arc<Mutex<AppState>>, config_file: Option<String>) {
-    // Initialize config
-    let config = match Config::check_config(config_file) {
-        Ok(config) => config,
-        Err(e) => {
-            log_error(state, &format!("Failed to load config: {}", e));
-            Config::new()
-        }
-    };
+impl ApplicationHandler for App {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        self.window = Some(
+            event_loop
+                .create_window(Window::default_attributes())
+                .unwrap(),
+        );
+    }
 
-    // Initialize window explicitly
-    let window = gui::window::build_ui(app, &config, state);
-    window.present();
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
+        match event {
+            WindowEvent::CloseRequested => {
+                println!("The close button was pressed; stopping");
+                event_loop.exit();
+            }
+            WindowEvent::RedrawRequested => {
+                // Redraw the application.
+                //
+                // It's preferable for applications that do not render continuously to render in
+                // this event rather than in AboutToWait, since rendering in here allows
+                // the program to gracefully handle redraws requested by the OS.
+
+                // Draw.
+
+                // Queue a RedrawRequested event.
+                //
+                // You only need to call this if you've determined that you need to redraw in
+                // applications which do not always need to. Applications that redraw continuously
+                // can render here instead.
+                lustrerender();
+                self.window.as_ref().unwrap().request_redraw();
+            }
+            _ => (),
+        }
+    }
+}
+
+fn main() {
+    let event_loop = EventLoop::new().unwrap();
+
+    // ControlFlow::Poll continuously runs the event loop, even if the OS hasn't
+    // dispatched any events. This is ideal for games and similar applications.
+    event_loop.set_control_flow(ControlFlow::Poll);
+
+    // ControlFlow::Wait pauses the event loop if no events are available to process.
+    // This is ideal for non-game applications that only update in response to user
+    // input, and uses significantly less power/CPU time than ControlFlow::Poll.
+    // event_loop.set_control_flow(ControlFlow::Wait);
+
+    let mut app = App::default();
+    event_loop.run_app(&mut app);
 }
