@@ -74,7 +74,6 @@ pub fn lustrerender() {
     let queue = queues.next().unwrap();
 
     // Compute operations
-
     let memory_allocator = Arc::new(StandardMemoryAllocator::new_default(device.clone()));
 
     let data_iter = 0..65536u32;
@@ -93,24 +92,11 @@ pub fn lustrerender() {
     )
     .expect("failed to create buffer");
 
-    // Compute Pipelines
+    // Shader
     mod cs {
         vulkano_shaders::shader! {
             ty: "compute",
-            src: "
-                #version 460
-
-                layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
-
-                layout(set = 0, binding = 0) buffer Data {
-                    uint data[];
-                } buf;
-
-                void main() {
-                    uint idx = gl_GlobalInvocationID.x;
-                    buf.data[idx] *= 12;
-                }
-            "
+            path: "src/shaders/shader.comp"
         }
     }
 
@@ -126,6 +112,7 @@ pub fn lustrerender() {
     )
     .unwrap();
 
+    // Compute Pipelines
     let compute_pipeline = ComputePipeline::new(
         device.clone(),
         None,
@@ -134,7 +121,6 @@ pub fn lustrerender() {
     .expect("failed to create compute pipeline");
 
     // Create the descriptor set allocators
-    // PersistentDescriptorSet is now merged with DescriptorSet
     let descriptor_set_allocator = Arc::new(StandardDescriptorSetAllocator::new(
         device.clone(),
         Default::default(),
@@ -163,7 +149,7 @@ pub fn lustrerender() {
 
     // Create a primary command buffer builder, passing the Arc (or a clone of it).
     let mut command_buffer_builder = AutoCommandBufferBuilder::primary(
-        command_buffer_allocator.clone(), // Correct: passing an Arc
+        command_buffer_allocator.clone(), // Passing the Arc
         queue.queue_family_index(),       // Using the queue's family index
         CommandBufferUsage::OneTimeSubmit,
     )
@@ -191,8 +177,9 @@ pub fn lustrerender() {
     // Build the command buffer.
     let command_buffer = command_buffer_builder.build().unwrap();
 
+    // Submit the command buffer.
     let future = sync::now(device)
-        .then_execute(queue, command_buffer)
+        .then_execute(queue.clone(), command_buffer)
         .unwrap()
         .then_signal_fence_and_flush()
         .unwrap();
