@@ -10,12 +10,12 @@ use vulkano::command_buffer::allocator::{
     StandardCommandBufferAllocator, StandardCommandBufferAllocatorCreateInfo,
 };
 use vulkano::command_buffer::{
-    AutoCommandBufferBuilder, ClearColorImageInfo, CommandBufferUsage, CopyImageToBufferInfo,
-};
+    AutoCommandBufferBuilder, CommandBufferUsage, CopyImageToBufferInfo,
+}; // ClearColorImageInfo
 use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
 use vulkano::descriptor_set::{DescriptorSet, WriteDescriptorSet};
 use vulkano::device::{Device, DeviceCreateInfo, DeviceExtensions, QueueCreateInfo, QueueFlags};
-use vulkano::format::{ClearColorValue, Format};
+use vulkano::format::Format; //ClearColorValue
 use vulkano::image::view::ImageView;
 use vulkano::image::{Image, ImageCreateInfo, ImageType, ImageUsage};
 use vulkano::instance::{Instance, InstanceCreateFlags, InstanceCreateInfo};
@@ -28,11 +28,10 @@ use vulkano::pipeline::{
 use vulkano::sync::{self, GpuFuture};
 use vulkano::VulkanLibrary;
 
-// TODO: Load shader here
 mod cs {
     vulkano_shaders::shader! {
         ty: "compute",
-        path: "src/shaders/border.comp"
+        path: "src/shaders/mandelbrot.comp"
     }
 }
 
@@ -139,7 +138,7 @@ pub fn lustrerender() {
     let descriptor_set = DescriptorSet::new(
         descriptor_set_allocator.clone(), // Pass an Arc, not a reference.
         descriptor_set_layout.clone(),
-        [WriteDescriptorSet::image_view(0, view)], // 0 is the binding
+        [WriteDescriptorSet::image_view(0, view.clone())], // 0 is the binding
         [],
     )
     .unwrap();
@@ -179,13 +178,14 @@ pub fn lustrerender() {
     // 128 in x and 128 in y directions
     let work_group_counts = [128, 128, 1];
 
+    // Memory transfer operation
     // 1. Clear image
-    cb_builder
-        .clear_color_image(ClearColorImageInfo {
-            clear_value: ClearColorValue::Float([0.0, 0.0, 1.0, 1.0]),
-            ..ClearColorImageInfo::image(image.clone())
-        })
-        .unwrap();
+    //cb_builder
+    //.clear_color_image(ClearColorImageInfo {
+    //clear_value: ClearColorValue::Float([0.0, 0.0, 1.0, 1.0]),
+    //..ClearColorImageInfo::image(image.clone())
+    //})
+    //.unwrap();
 
     // 2. Bind Compute pipeline && descriptor set
     cb_builder
