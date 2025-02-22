@@ -4,17 +4,18 @@
 
 use std::sync::Arc;
 
-use image::{load, ImageBuffer, Rgba};
+use image::{ImageBuffer, Rgba};
 use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
 use vulkano::command_buffer::allocator::{
     StandardCommandBufferAllocator, StandardCommandBufferAllocatorCreateInfo,
 };
-use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage}; // CopyBufferInfo};
+use vulkano::command_buffer::{
+    AutoCommandBufferBuilder, ClearColorImageInfo, CommandBufferUsage, CopyImageToBufferInfo,
+};
 use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
-use vulkano::descriptor_set::DescriptorSet;
-use vulkano::descriptor_set::WriteDescriptorSet;
+use vulkano::descriptor_set::{DescriptorSet, WriteDescriptorSet};
 use vulkano::device::{Device, DeviceCreateInfo, DeviceExtensions, QueueCreateInfo, QueueFlags};
-use vulkano::format::Format;
+use vulkano::format::{ClearColorValue, Format};
 use vulkano::image::view::ImageView;
 use vulkano::image::{Image, ImageCreateInfo, ImageType, ImageUsage};
 use vulkano::instance::{Instance, InstanceCreateFlags, InstanceCreateInfo};
@@ -26,6 +27,14 @@ use vulkano::pipeline::{
 };
 use vulkano::sync::{self, GpuFuture};
 use vulkano::VulkanLibrary;
+
+// TODO: Load shader here
+mod cs {
+    vulkano_shaders::shader! {
+        ty: "compute",
+        path: "src/shaders/border.comp"
+    }
+}
 
 pub fn lustrerender() {
     // Initialization
@@ -50,18 +59,13 @@ pub fn lustrerender() {
         .queue_family_properties()
         .iter()
         .enumerate()
-        // .position(|(_, q)| q.queue_flags.contains(QueueFlags::GRAPHICS))
-        .position(|(_, queue_family_properties)| {
-            queue_family_properties
-                .queue_flags
-                .contains(QueueFlags::COMPUTE)
-        })
-        .expect("couldn't find a compute queue family") as u32;
+        .position(|(_, q)| q.queue_flags.contains(QueueFlags::GRAPHICS))
+        .expect("couldn't find a graphics queue family") as u32;
 
     let (device, mut queues) = Device::new(
         physical_device,
         DeviceCreateInfo {
-            // desired queue family to use by index
+            // Desired queue family to use by index
             queue_create_infos: vec![QueueCreateInfo {
                 queue_family_index,
                 ..Default::default()
@@ -77,70 +81,8 @@ pub fn lustrerender() {
 
     let queue = queues.next().unwrap();
 
-    // Compute operations
-    let memory_allocator = Arc::new(StandardMemoryAllocator::new_default(device.clone()));
-
-    // let data_iter = 0..65536u32;
-    // let data_buffer = Buffer::from_iter(
-    // memory_allocator.clone(),
-    // BufferCreateInfo {
-    // usage: BufferUsage::STORAGE_BUFFER,
-    // ..Default::default()
-    // },
-    // AllocationCreateInfo {
-    // memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-    // | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-    // ..Default::default()
-    // },
-    // data_iter,
-    // )
-    // .expect("failed to create buffer");
-
-    // Shader
-    // mod cs {
-    // vulkano_shaders::shader! {
-    // ty: "compute",
-    // path: "src/shaders/shader.comp"
-    // }
-    // }
-
-    mod cs {
-        vulkano_shaders::shader! {
-            ty: "compute",
-            src: r"
-                #version 460
-
-                layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
-
-                layout(set = 0, binding = 0, rgba8) uniform writeonly image2D img;
-
-                void main() {
-                    vec2 norm_coordinates = (gl_GlobalInvocationID.xy + vec2(0.5)) / vec2(imageSize(img));
-
-                    vec2 c = (norm_coordinates - vec2(0.5)) * 2.0 - vec2(1.0, 0.0);
-
-                    vec2 z = vec2(0.0, 0.0);
-                    float i;
-                    for (i = 0.0; i < 1.0; i += 0.005) {
-                        z = vec2(
-                            z.x * z.x - z.y * z.y + c.x,
-                            z.y * z.x + z.x * z.y + c.y
-                        );
-
-                        if (length(z) > 4.0) {
-                            break;
-                        }
-                    }
-
-                    vec4 to_write = vec4(vec3(i), 1.0);
-                    imageStore(img, ivec2(gl_GlobalInvocationID.xy), to_write);
-                }
-            ",
-        }
-    }
-
+    // Load shaders
     let shader = cs::load(device.clone()).expect("failed to create shader module");
-
     let cs = shader.entry_point("main").unwrap();
     let stage = PipelineShaderStageCreateInfo::new(cs);
     let layout = PipelineLayout::new(
@@ -159,6 +101,8 @@ pub fn lustrerender() {
     )
     .expect("failed to create compute pipeline");
 
+    let memory_allocator = Arc::new(StandardMemoryAllocator::new_default(device.clone()));
+
     // Create the Image
     let image = Image::new(
         memory_allocator.clone(),
@@ -166,7 +110,7 @@ pub fn lustrerender() {
             image_type: ImageType::Dim2d,
             format: Format::R8G8B8A8_UNORM,
             extent: [1024, 1024, 1],
-            usage: ImageUsage::STORAGE | ImageUsage::TRANSFER_SRC,
+            usage: ImageUsage::STORAGE | ImageUsage::TRANSFER_SRC | ImageUsage::TRANSFER_DST,
             ..Default::default()
         },
         AllocationCreateInfo {
@@ -176,7 +120,7 @@ pub fn lustrerender() {
     )
     .unwrap();
 
-    // Create viewport
+    // Create view
     let view = ImageView::new_default(image.clone()).unwrap();
 
     // Create the descriptor set allocators
@@ -196,7 +140,6 @@ pub fn lustrerender() {
         descriptor_set_allocator.clone(), // Pass an Arc, not a reference.
         descriptor_set_layout.clone(),
         [WriteDescriptorSet::image_view(0, view)], // 0 is the binding
-        // [WriteDescriptorSet::buffer(0, data_buffer.clone())], // 0 is the binding
         [],
     )
     .unwrap();
@@ -218,23 +161,34 @@ pub fn lustrerender() {
     .expect("failed to create buffer");
 
     // Create the command buffer allocator, wrapped in an Arc.
-    let command_buffer_allocator = Arc::new(StandardCommandBufferAllocator::new(
+    let cb_allocator = Arc::new(StandardCommandBufferAllocator::new(
         device.clone(),
         StandardCommandBufferAllocatorCreateInfo::default(),
     ));
 
     // Create a primary command buffer builder, passing the Arc (or a clone of it).
-    let mut command_buffer_builder = AutoCommandBufferBuilder::primary(
-        command_buffer_allocator.clone(), // Passing the Arc
-        queue.queue_family_index(),       // Using the queue's family index
+    let mut cb_builder = AutoCommandBufferBuilder::primary(
+        cb_allocator.clone(),       // Passing the Arc
+        queue.queue_family_index(), // Using the queue's family index
         CommandBufferUsage::OneTimeSubmit,
     )
     .unwrap();
 
-    // let work_group_counts = [1024, 1, 1];
+    // Determine number of work groups to dispatch
+    // To cover a 1024x1024 image: 1024 / 8 = 128
+    // 128 in x and 128 in y directions
+    let work_group_counts = [128, 128, 1];
 
-    // Bind the compute pipeline, descriptor sets, and dispatch work groups.
-    command_buffer_builder
+    // 1. Clear image
+    cb_builder
+        .clear_color_image(ClearColorImageInfo {
+            clear_value: ClearColorValue::Float([0.0, 0.0, 1.0, 1.0]),
+            ..ClearColorImageInfo::image(image.clone())
+        })
+        .unwrap();
+
+    // 2. Bind Compute pipeline && descriptor set
+    cb_builder
         .bind_pipeline_compute(compute_pipeline.clone())
         .unwrap()
         .bind_descriptor_sets(
@@ -245,13 +199,21 @@ pub fn lustrerender() {
         )
         .unwrap();
 
-    // Wrap the call to dispatch in an unsafe block:
-    //unsafe {
-    //command_buffer_builder.dispatch(work_group_counts).unwrap();
-    // }
+    // 3. Wrap the call to dispatch in an unsafe block:
+    unsafe {
+        cb_builder.dispatch(work_group_counts).unwrap();
+    }
+
+    // 4. Copy image to buffer
+    cb_builder
+        .copy_image_to_buffer(CopyImageToBufferInfo::image_buffer(
+            image.clone(),
+            buf.clone(),
+        ))
+        .unwrap();
 
     // Build the command buffer.
-    let command_buffer = command_buffer_builder.build().unwrap();
+    let command_buffer = cb_builder.build().unwrap();
 
     // Submit the command buffer.
     let future = sync::now(device)
@@ -262,11 +224,7 @@ pub fn lustrerender() {
 
     future.wait(None).unwrap();
 
-    // let content = data_buffer.read().unwrap();
-    // for (n, val) in content.iter().enumerate() {
-    // assert_eq!(*val, n as u32 * 12);
-    // }
-
+    // Generate image
     let content = buf.read().unwrap();
     let image = ImageBuffer::<Rgba<u8>, _>::from_raw(1024, 1024, &content[..]).unwrap();
     image.save("image.png").unwrap();

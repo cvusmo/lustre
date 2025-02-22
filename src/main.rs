@@ -42,7 +42,16 @@ impl ApplicationHandler for App {
                 // You only need to call this if you've determined that you need to redraw in
                 // applications which do not always need to. Applications that redraw continuously
                 // can render here instead.
+
+                // Call for rendering
+                println!("Call for render");
                 lustrerender();
+
+                // TODO:
+                // 1. create swapchain
+                // 2. framebuffers
+                // 3. vertex buffers
+                // 4. all the things
                 self.window.as_ref().unwrap().request_redraw();
             }
             _ => (),

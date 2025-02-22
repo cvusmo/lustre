@@ -33,15 +33,14 @@ vulkano-macros = "0.35.0"
 vulkano-win = "0.34.0"
 vulkano-shaders = "0.35.0"
 vulkano-util = "0.35.0"
-winit = "0.30.9"
-# winit = { version = "0.30.9", optional = true, features = ["x11", "wayland"] }
+winit = { version = "0.30.9", optional = true, features = ["x11", "wayland"] }
 
-# [features]
-# default = ["winit"]
+[features]
+default = ["winit"]
 
-# wayland = ["winit/wayland"]
-# x11 = ["winit/x11"]
+wayland = ["winit/wayland"]
+x11 = ["winit/x11"]
 
 # Ensure that wayland and x11 features are mutually exclusive
-# wayland-conflict = ["x11"]
-# x11-conflict = ["wayland"]
+wayland-conflict = ["x11"]
+x11-conflict = ["wayland"]
