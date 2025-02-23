@@ -2,7 +2,10 @@
 // github.com/cvusmo/lustre
 // src/lib.rs
 
-pub mod lustrerender;
+pub mod render;
 pub mod state;
+// pub mod physics;
+pub mod shaders;
+pub mod window;
 
 pub use state::AppState;

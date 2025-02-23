@@ -8,7 +8,7 @@ name = "lustre"
 path = "src/lib.rs"
 
 [[bin]]
-name = "lustre-bin"
+name = "lustre"
 path = "src/main.rs"
 
 [dependencies]

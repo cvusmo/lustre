@@ -1,9 +1,11 @@
 // Copyright 2025 Nicholas Jordan. All Rights Reserved.
 // github.com/cvusmo/lustre
-// src/lustrerender.rs
+// src/render.rs
 
 use std::sync::Arc;
 
+use crate::shaders::fs;
+use crate::shaders::vs;
 use image::{ImageBuffer, Rgba};
 use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage};
 use vulkano::command_buffer::allocator::{
@@ -174,21 +176,6 @@ pub fn lustrerender() {
     )
     .unwrap();
 
-    // Shaders
-    mod vs {
-        vulkano_shaders::shader! {
-            ty: "vertex",
-            path: "src/shaders/vertex.comp",
-        }
-    }
-
-    mod fs {
-        vulkano_shaders::shader! {
-            ty: "fragment",
-            path: "src/shaders/fragment.comp",
-        }
-    }
-
     let vs = vs::load(device.clone()).expect("failed to create vertex shader module");
     let fs = fs::load(device.clone()).expect("failed to create fragment shader module");
 
@@ -292,15 +279,6 @@ pub fn lustrerender() {
             .copy_image_to_buffer(CopyImageToBufferInfo::image_buffer(image, buf.clone()))
             .unwrap();
     }
-
-    // 3. Wrap the call to dispatch in an unsafe block:
-    //unsafe {
-    //cb_builder.dispatch(work_group_counts).unwrap();
-    //}
-
-    //cb_builder
-    //.copy_image_to_buffer(CopyImageToBufferInfo::image_buffer(image, buf.clone()))
-    //.unwrap();
 
     let command_buffer = cb_builder.build().unwrap();
 
