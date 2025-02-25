@@ -22,7 +22,6 @@ use vulkano::device::physical::{PhysicalDevice, PhysicalDeviceType};
 use vulkano::device::{
     Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo, QueueFlags,
 };
-use vulkano::format::Format;
 use vulkano::image::view::ImageView;
 use vulkano::image::{Image, ImageCreateInfo, ImageType, ImageUsage};
 use vulkano::instance::Instance;
@@ -38,7 +37,9 @@ use vulkano::pipeline::layout::PipelineDescriptorSetLayoutCreateInfo;
 use vulkano::pipeline::{GraphicsPipeline, PipelineLayout, PipelineShaderStageCreateInfo};
 use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass};
 use vulkano::shader::ShaderModule;
-use vulkano::swapchain::{PresentMode, Surface, Swapchain, SwapchainCreateInfo};
+use vulkano::swapchain::{
+    PresentMode, Surface, Swapchain, SwapchainCreateInfo, SwapchainPresentInfo,
+};
 use vulkano::sync::{self, GpuFuture};
 
 // Create Vertices
@@ -100,8 +101,11 @@ fn get_render_pass(device: Arc<Device>, swapchain: Arc<Swapchain>) -> Arc<Render
 }
 
 // Get Framebuffers
-fn get_framebuffers(images: &[Arc<Image>], render_pass: Arc<RenderPass>) -> Vec<Arc<Framebuffer>> {
-    images
+fn get_framebuffers(
+    swapchain_images: &[Arc<Image>],
+    render_pass: Arc<RenderPass>,
+) -> Vec<Arc<Framebuffer>> {
+    swapchain_images
         .iter()
         .map(|image| {
             let view = ImageView::new_default(image.clone()).unwrap();
@@ -173,14 +177,11 @@ fn get_graphic_pipeline(
 fn get_command_buffers(
     command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
     queue: &Arc<Queue>,
-    render_pass: Arc<RenderPass>,
     graphic_pipeline: &Arc<GraphicsPipeline>,
-    framebuffers: &[Arc<Framebuffer>],
+    framebuffer: &[Arc<Framebuffer>],
     vertex_buffer: &Subbuffer<[MainVertex]>,
-    offscreen_image: Arc<Image>,
-    buf: Subbuffer<[u8]>,
 ) -> Vec<Arc<PrimaryAutoCommandBuffer>> {
-    framebuffers
+    framebuffer
         .iter()
         .map(|framebuffer| {
             // Create a new command buffer builder for each framebuffer.
@@ -190,12 +191,6 @@ fn get_command_buffers(
                 CommandBufferUsage::MultipleSubmit,
             )
             .unwrap();
-
-            //let render_pass_info = RenderPassBeginInfo {
-            //framebuffer: framebuffer.clone(),
-            //clear_values: vec![Some([0.0, 0.0, 1.0, 1.0].into())],
-            //..Default::default()
-            //};
 
             let mut render_pass_info = RenderPassBeginInfo::framebuffer(framebuffer.clone());
             render_pass_info.clear_values = vec![Some([0.0, 0.0, 1.0, 1.0].into())];
@@ -214,11 +209,6 @@ fn get_command_buffers(
                     .draw(vertex_buffer.len() as u32, 1, 0, 0)
                     .unwrap()
                     .end_render_pass(Default::default())
-                    .unwrap()
-                    .copy_image_to_buffer(CopyImageToBufferInfo::image_buffer(
-                        offscreen_image.clone(),
-                        buf.clone(),
-                    ))
                     .unwrap();
             }
             builder.build().unwrap()
@@ -279,8 +269,29 @@ pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>) {
     )
     .expect("failed to create buffer");
 
-    // Create the Image
-    // let images = vec![offscreen_image.clone()];
+    // Create the swapchain.
+    let (format, _colorspace) = physical_device
+        .surface_formats(&surface, Default::default())
+        .unwrap()[0];
+
+    let caps = physical_device
+        .surface_capabilities(&surface, Default::default())
+        .expect("failed to get surface capabilities");
+    let image_extent = caps.current_extent.unwrap_or([1024, 1024]);
+
+    let (swapchain, swapchain_images) = Swapchain::new(
+        device.clone(),
+        surface.clone(),
+        SwapchainCreateInfo {
+            min_image_count: caps.min_image_count,
+            image_format: format, // Store this format to use later
+            image_extent,
+            image_usage: ImageUsage::COLOR_ATTACHMENT,
+            present_mode: PresentMode::Fifo,
+            ..Default::default()
+        },
+    )
+    .expect("failed to create swapchain");
 
     let vertex1 = MainVertex {
         position: [-0.5, -0.5],
@@ -310,55 +321,18 @@ pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>) {
     )
     .unwrap();
 
-    // Create the swapchain.
-    let (format, _colorspace) = physical_device
-        .surface_formats(&surface, Default::default())
-        .unwrap()[0];
-    let caps = physical_device
-        .surface_capabilities(&surface, Default::default())
-        .expect("failed to get surface capabilities");
-    let image_extent = caps.current_extent.unwrap_or([1024, 1024]);
+    // let images = vec![swapchain_images.clone()];
 
-    let (swapchain, _swapchain_images) = Swapchain::new(
-        device.clone(),
-        surface.clone(),
-        SwapchainCreateInfo {
-            min_image_count: caps.min_image_count,
-            image_format: format, // Store this format to use later
-            image_extent: image_extent,
-            image_usage: ImageUsage::COLOR_ATTACHMENT,
-            present_mode: PresentMode::Fifo,
-            ..Default::default()
-        },
-    )
-    .expect("failed to create swapchain");
-
-    // Create the offscreen image using the same format as the swapchain
-    let offscreen_image = Image::new(
-        memory_allocator.clone(),
-        ImageCreateInfo {
-            image_type: ImageType::Dim2d,
-            format,
-            extent: [1024, 1024, 1],
-            usage: ImageUsage::COLOR_ATTACHMENT
-                | ImageUsage::TRANSFER_SRC
-                | ImageUsage::TRANSFER_DST,
-            ..Default::default()
-        },
-        AllocationCreateInfo {
-            memory_type_filter: MemoryTypeFilter::PREFER_DEVICE,
-            ..Default::default()
-        },
-    )
-    .unwrap();
-
-    let images = vec![offscreen_image.clone()];
+    // Acquire swapchain image and present it
+    let (image_index, suboptimal, acquire_future) =
+        vulkano::swapchain::acquire_next_image(swapchain.clone(), None)
+            .expect("failed to acquire next image.");
 
     // Single Render Pass && Swapchain Creation
     let render_pass = get_render_pass(device.clone(), swapchain.clone());
 
     // Creating Framebuffers
-    let framebuffers = get_framebuffers(&images, render_pass.clone());
+    let framebuffer = get_framebuffers(&swapchain_images, render_pass.clone());
 
     // Create viewport
     let viewport = Viewport {
@@ -388,20 +362,22 @@ pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>) {
     let command_buffers = get_command_buffers(
         command_buffer_allocator,
         &queue,
-        render_pass.clone(),
         &graphic_pipeline,
-        &framebuffers,
+        &framebuffer,
         &vertex_buffer,
-        offscreen_image.clone(),
-        buf.clone(),
     );
 
     let command_buffer = command_buffers[0].clone();
 
     // Submit the command buffer.
-    let future = sync::now(device)
+    //let future = sync::now(device)
+    let future = acquire_future
         .then_execute(queue.clone(), command_buffer)
         .unwrap()
+        .then_swapchain_present(
+            queue.clone(),
+            SwapchainPresentInfo::swapchain_image_index(swapchain.clone(), image_index),
+        )
         .then_signal_fence_and_flush()
         .unwrap();
     future.wait(None).unwrap();
