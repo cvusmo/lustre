@@ -5,6 +5,7 @@
 pub mod render;
 pub mod state;
 // pub mod physics;
+pub mod launcher;
 pub mod shaders;
 pub mod window;
 
