@@ -1,13 +1,11 @@
 // Copyright 2025 Nicholas Jordan. All Rights Reserved.
 // github.com/cvusmo/lustre
+// src/file_explorer.rs
 
-// src/modules/engine/gui/explorer/file_explorer.rs
-// github.com/cvusmo/gameengine
-
-use crate::modules::engine::configuration::logger::AppState;
-use crate::modules::engine::configuration::logger::*;
-use crate::modules::engine::gui::editor::lua_editor::create_lua_editor;
-use crate::modules::engine::gui::utils::load_project_area;
+use crate::lua_editor::create_lua_editor;
+use crate::state::AppState;
+use crate::state::*;
+use crate::utils::load_project_area;
 use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::{FileChooserAction, FileChooserDialog, ResponseType};
@@ -60,16 +58,10 @@ pub fn open_file(state: Arc<Mutex<AppState>>, parent: &impl IsA<gtk4::Window>) {
                             load_project_area(&state_clone_inner, &content, create_lua_editor);
 
                             // Log information
-                            log_info(
-                                &state_clone_inner,
-                                &format!("Project path set to: {}", file_path.display()),
-                            );
+                            log_info(&format!("Project path set to: {}", file_path.display()));
                         }
                         Err(err) => {
-                            log_error(
-                                &state_clone_inner,
-                                &format!("Failed to read file content: {}", err),
-                            );
+                            log_error(&format!("Failed to read file content: {}", err));
                         }
                     }
                 });

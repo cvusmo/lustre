@@ -4,7 +4,7 @@
 // src/modules/engine/gui/utils.rs
 // github.com/cvusmo/gameengine
 
-use crate::modules::engine::configuration::logger::{log_error, log_info, AppState};
+use crate::state::{log_error, log_info, AppState};
 use glib::source::timeout_add_local;
 use gtk4::prelude::*;
 use gtk4::WrapMode::Word;
@@ -32,10 +32,7 @@ pub fn create_text_editor(content: &str, state: &Arc<Mutex<AppState>>) -> Scroll
     text_view.set_visible(true);
     text_view.show();
 
-    log_info(
-        state,
-        "TextView created and set to be editable and focusable.",
-    );
+    log_info("TextView created and set to be editable and focusable.");
 
     // Signal to track changes in buffer and debounce
     {
@@ -52,7 +49,7 @@ pub fn create_text_editor(content: &str, state: &Arc<Mutex<AppState>>) -> Scroll
                 }
 
                 // Log the change
-                log_info(&state_clone_inner, "TextView content changed.");
+                log_info("TextView content changed.");
 
                 // Use ControlFlow::Break to stop further invocation of the closure
                 glib::ControlFlow::Break
@@ -78,10 +75,7 @@ pub fn create_text_editor(content: &str, state: &Arc<Mutex<AppState>>) -> Scroll
     scrolled_window.set_visible(true);
     scrolled_window.show();
 
-    log_info(
-        state,
-        "ScrolledWindow created, set to visible, and focusable.",
-    );
+    log_info("ScrolledWindow created, set to visible, and focusable.");
 
     scrolled_window
 }
@@ -106,15 +100,15 @@ where
         drop(state_lock);
 
         // Clear previous content
-        log_info(state, "Clearing previous content...");
+        log_info("Clearing previous content...");
         clear_project_area(&project_area);
 
         // Create new editor
-        log_info(state, "Creating new text editor...");
+        log_info("Creating new text editor...");
         let editor = create_editor(content, state);
 
         // Append scrolled window
-        log_info(state, "Appending editor to project area...");
+        log_info("Appending editor to project area...");
         project_area.append(&editor);
 
         // Request focus for text view
@@ -128,13 +122,13 @@ where
             state_lock.is_modified = false;
         }
     } else {
-        log_error(state, "Project area not found to load content.");
+        log_error("Project area not found to load content.");
     }
 }
 
 /// Function to save the current project to an existing file path.
 pub fn save_file(state: &Arc<Mutex<AppState>>) {
-    log_info(state, "Saving project...");
+    log_info("Saving project...");
 
     let (path, text) = {
         // Lock state, read the necessary information, then drop the lock.
@@ -147,14 +141,11 @@ pub fn save_file(state: &Arc<Mutex<AppState>>) {
                 let text = buffer.text(&start, &end, true).to_string();
                 (Some(path.clone()), text)
             } else {
-                log_error(state, "No text view found in the current project.");
+                log_error("No text view found in the current project.");
                 (None, String::new())
             }
         } else {
-            log_error(
-                state,
-                "No file path available. Use 'Save As...' to specify a location.",
-            );
+            log_error("No file path available. Use 'Save As...' to specify a location.");
             (None, String::new())
         }
     };
@@ -162,14 +153,14 @@ pub fn save_file(state: &Arc<Mutex<AppState>>) {
     if let Some(path) = path {
         match fs::write(&path, text) {
             Ok(_) => {
-                log_info(state, &format!("File saved: {}", path.display()));
+                log_info(&format!("File saved: {}", path.display()));
                 // Mark as not modified after a successful save
                 if let Ok(mut state_lock) = state.lock() {
                     state_lock.is_modified = false;
                 }
             }
             Err(err) => {
-                log_error(state, &format!("Failed to save file: {}", err));
+                log_error(&format!("Failed to save file: {}", err));
             }
         }
     }
@@ -177,7 +168,7 @@ pub fn save_file(state: &Arc<Mutex<AppState>>) {
 
 /// Function to save the current project as a new file.
 pub fn save_as_file(state: Arc<Mutex<AppState>>, parent: Arc<ApplicationWindow>) {
-    log_info(&state, "Saving project as a new file...");
+    log_info("Saving project as a new file...");
 
     let dialog = FileChooserDialog::builder()
         .title("Save File As")
@@ -206,19 +197,16 @@ pub fn save_as_file(state: Arc<Mutex<AppState>>, parent: Arc<ApplicationWindow>)
 
                         match fs::write(&file_path, text) {
                             Ok(_) => {
-                                log_info(
-                                    &state_clone,
-                                    &format!("File saved as: {}", file_path.display()),
-                                );
+                                log_info(&format!("File saved as: {}", file_path.display()));
                                 state.project_path = Some(file_path);
                                 state.is_modified = false; // Mark as not modified after saving
                             }
                             Err(err) => {
-                                log_error(&state_clone, &format!("Failed to save file: {}", err));
+                                log_error(&format!("Failed to save file: {}", err));
                             }
                         }
                     } else {
-                        log_error(&state_clone, "No text view found in the current project.");
+                        log_error("No text view found in the current project.");
                     }
                 }
             }
@@ -286,7 +274,7 @@ pub fn execute_lua_script(state: &Arc<Mutex<AppState>>, script_content: &str) {
 
     // Load and execute Lua script
     match lua_lock.load(script_content).exec() {
-        Ok(_) => log_info(state, "Lua script compiled and executed successfuly."),
-        Err(err) => log_error(state, &format!("Failed to execute Lua script: {:?}", err)),
+        Ok(_) => log_info("Lua script compiled and executed successfuly."),
+        Err(err) => log_error(&format!("Failed to execute Lua script: {:?}", err)),
     }
 }

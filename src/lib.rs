@@ -1,11 +1,17 @@
 // Copyright 2025 Nicholas Jordan. All Rights Reserved.
 // github.com/cvusmo/lustre
-
 // src/lib.rs
-// github.com/cvusmo/gameengine
 
-pub mod modules;
+pub mod gui;
+pub mod menu_bar;
+pub mod render;
+pub mod state;
+// pub mod physics;
+pub mod file_explorer;
+pub mod launcher;
+pub mod lua_editor;
+pub mod shaders;
+pub mod utils;
+pub mod window;
 
-// Re-export necessary components
-pub use modules::engine::configuration::config::Config;
-pub use modules::engine::configuration::logger::{create_state, setup_logging};
+pub use state::AppState;

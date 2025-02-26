@@ -1,0 +1,21 @@
+#version 460
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+layout(binding = 0, set = 0, rgba8) uniform writeonly image2D img;
+
+void main() {
+  ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);
+  ivec2 size = imageSize(img);
+  int border = 15;
+
+  if (pixel.x >= size.x || pixel.y >= size.y) {
+      return;
+    }
+
+    if (pixel.x < border || pixel.x >= size.x - border || 
+      pixel.y < border || pixel.y >= size.y - border) {
+        imageStore(img, pixel, vec4(0.0, 0.0, 1.0, 1.0)); // Blue
+      } else {
+        imageStore(img, pixel, vec4(1.0, 1.0, 1.0, 1.0)); // White  
+      }
+}

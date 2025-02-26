@@ -4,12 +4,12 @@
 // src/modules/engine/gui/menu_bar.rs
 // github.com/cvusmo/gameengine
 
-use crate::modules::engine::configuration::logger::AppState;
-use crate::modules::engine::configuration::logger::*;
-use crate::modules::engine::gui::editor::lua_editor::{create_lua_editor, run_lua_script};
-use crate::modules::engine::gui::explorer::file_explorer::*;
-use crate::modules::engine::gui::utils::{handle_exit, load_project_area, save_as_file, save_file};
-// use crate::modules::render::vulkan::wayland::core::VulkanContext;
+use crate::file_explorer::open_file;
+use crate::lua_editor::{create_lua_editor, run_lua_script};
+use crate::render::lustre_render;
+use crate::state::{log_error, log_info, AppState};
+use crate::utils::{handle_exit, load_project_area, save_as_file, save_file};
+use crate::window::lustre_window;
 
 use gtk4::prelude::*;
 use gtk4::{
@@ -22,9 +22,8 @@ pub fn create_menu_bar(
     state: &Arc<Mutex<AppState>>,
     parent: &Arc<ApplicationWindow>,
     app: &Application,
-    //vulkan_context: &Arc<Mutex<VulkanContext>>,
 ) -> GtkBox {
-    log_info(state, "Creating menu bar...");
+    log_info("Creating menu bar...");
 
     // Create horizontal menu bar container
     let menu_bar = GtkBox::new(Orientation::Horizontal, 5);
@@ -45,7 +44,7 @@ pub fn create_menu_bar(
     let state_clone = Arc::clone(state);
     let content = String::from("");
     new_button.connect_clicked(move |_| {
-        log_info(&state_clone, "Creating New Project...");
+        log_info("Creating New Project...");
         load_project_area(&state_clone, &content, create_lua_editor);
     });
 
@@ -55,7 +54,7 @@ pub fn create_menu_bar(
     let state_clone_open = Arc::clone(state);
     let parent_clone_open = Arc::clone(parent);
     open_button.connect_clicked(move |_| {
-        log_info(&state_clone_open, "Open file button clicked.");
+        log_info("Open file button clicked.");
         open_file(state_clone_open.clone(), parent_clone_open.as_ref());
     });
 
@@ -64,9 +63,9 @@ pub fn create_menu_bar(
     file_box.append(&save_button);
     let state_clone_save = Arc::clone(state);
     save_button.connect_clicked(move |_| {
-        log_info(&state_clone_save, "Save file button clicked.");
+        log_info("Save file button clicked.");
         save_file(&state_clone_save);
-        log_info(&state_clone_save, "File saved operation finished.");
+        log_info("File saved operation finished.");
     });
 
     // Save As... button
@@ -75,9 +74,9 @@ pub fn create_menu_bar(
     let state_clone_save_as = Arc::clone(state);
     let parent_clone_save_as = Arc::clone(parent);
     save_as_button.connect_clicked(move |_| {
-        log_info(&state_clone_save_as, "Save As button clicked.");
+        log_info("Save As button clicked.");
         save_as_file(state_clone_save_as.clone(), parent_clone_save_as.clone());
-        log_info(&state_clone_save_as, "Save As operation finished.");
+        log_info("Save As operation finished.");
     });
 
     // Exit button
@@ -86,7 +85,7 @@ pub fn create_menu_bar(
     let state_clone_exit = Arc::clone(state);
     let app_clone = app.clone();
     exit_button.connect_clicked(move |_| {
-        log_info(&state_clone_exit, "Exit button clicked.");
+        log_info("Exit button clicked.");
         handle_exit(state_clone_exit.clone(), &app_clone);
     });
 
@@ -115,29 +114,35 @@ pub fn create_menu_bar(
     project_box.append(&compile_button);
     let state_clone_compile = Arc::clone(state);
     compile_button.connect_clicked(move |_| {
-        log_info(&state_clone_compile, "Begin compiling project...");
+        log_info("Begin compiling project...");
         run_lua_script(&state_clone_compile);
         // run_lua_from_editor(&state_clone_compile);
-        log_info(&state_clone_compile, "Project compiled.");
+        log_info("Project compiled.");
     });
 
     // Render Project Button
     let render_button = Button::with_label("Render");
     project_box.append(&render_button);
-    //let state_clone_render = Arc::clone(state);
-    //let vulkan_context_clone = Arc::clone(vulkan_context);
-    //render_button.connect_clicked(move |_| {
-    // Calls rendering and logs
-    //log_info(&state_clone_render, "Rendering project...");
-    //if let Ok(mut vulkan_context) = vulkan_context_clone.lock() {
-    //    vulkan_context.render(&state_clone_render);
-    //} else {
-    //    log_error(
-    //        &state_clone_render,
-    //        "Failed to lock Vulkan context for rendering.",
-    //    );
-    //}
-    //});
+    render_button.connect_clicked({
+        let state_clone = Arc::clone(state);
+        move |_| {
+            // Retrieve the Vulkan instance and surface from AppState.
+            let (maybe_instance, maybe_surface) = {
+                let state_lock = state_clone.lock().unwrap();
+                (
+                    state_lock.vulkan_instance.clone(),
+                    state_lock.vulkan_surface.clone(),
+                )
+            };
+            if let (Some(instance), Some(surface)) = (maybe_instance, maybe_surface) {
+                lustre_render(instance.clone(), surface.clone());
+            } else {
+                log_error("Vulkan instance or surface not available.");
+            }
+
+            lustre_window();
+        }
+    });
 
     project_popover.set_child(Some(&project_box));
     project_button.set_popover(Some(&project_popover));
@@ -147,6 +152,6 @@ pub fn create_menu_bar(
     menu_bar.append(&edit_button);
     menu_bar.append(&project_button);
 
-    log_info(state, "Menu bar created successfully.");
+    log_info("Menu bar created successfully.");
     menu_bar
 }
