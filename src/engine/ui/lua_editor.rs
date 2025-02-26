@@ -2,8 +2,8 @@
 // github.com/cvusmo/lustre
 //src/lua_editor.rs
 
+use crate::engine::ui::utils::{create_text_editor, execute_lua_script};
 use crate::state::{log_error, log_info, AppState};
-use crate::utils::{create_text_editor, execute_lua_script};
 use crate::window::lustre_window;
 use gtk4::prelude::*;
 use gtk4::ScrolledWindow;
@@ -114,5 +114,5 @@ pub fn run_lua_script(state: &Arc<Mutex<AppState>>) {
 
 /// Launches the Vulkan render window.
 pub fn launch_vulkan_render() {
-    lustre_window();
+    // lustre_window(state);
 }

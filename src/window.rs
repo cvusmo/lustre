@@ -2,8 +2,9 @@
 // github.com/cvusmo/lustre
 // src/window.rs
 
-use crate::render::lustre_render;
-use std::sync::Arc;
+use crate::engine::render::lustre_render;
+use crate::state::AppState;
+use std::sync::{Arc, Mutex};
 use vulkano::instance::{Instance, InstanceCreateFlags, InstanceCreateInfo};
 use vulkano::library::VulkanLibrary;
 use vulkano::swapchain::Surface;
@@ -18,6 +19,7 @@ struct App {
     window: Option<Arc<Window>>,
     surface: Option<Arc<Surface>>,
     instance: Option<Arc<Instance>>,
+    state: Option<Arc<Mutex<AppState>>>,
 }
 
 impl ApplicationHandler for App {
@@ -57,11 +59,11 @@ impl ApplicationHandler for App {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                println!("Redrawing");
-                if let (Some(ref instance), Some(ref surface)) = (&self.instance, &self.surface) {
-                    lustre_render(instance.clone(), surface.clone());
+                if let (Some(ref instance), Some(ref surface), Some(ref state)) =
+                    (&self.instance, &self.surface, &self.state)
+                {
+                    lustre_render(instance.clone(), surface.clone(), state.clone());
                 }
-                // Optionally, request another redraw.
                 if let Some(ref window) = self.window {
                     window.request_redraw();
                 }
@@ -71,9 +73,10 @@ impl ApplicationHandler for App {
     }
 }
 
-pub fn lustre_window() {
+pub fn lustre_window(state: Arc<Mutex<AppState>>) {
     let event_loop = EventLoop::new().unwrap();
     event_loop.set_control_flow(ControlFlow::Wait);
     let mut app = App::default();
+    app.state = Some(state);
     event_loop.run_app(&mut app);
 }

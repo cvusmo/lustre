@@ -2,10 +2,10 @@
 // github.com/cvusmo/lustre
 // src/file_explorer.rs
 
-use crate::lua_editor::create_lua_editor;
+use crate::engine::ui::lua_editor::create_lua_editor;
+use crate::engine::ui::utils::load_project_area;
 use crate::state::AppState;
 use crate::state::*;
-use crate::utils::load_project_area;
 use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::{FileChooserAction, FileChooserDialog, ResponseType};

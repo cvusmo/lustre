@@ -3,22 +3,24 @@
 // src/main.rs
 
 use log::LevelFilter;
+use lustre::engine::ui::lua_editor::register_all;
 use lustre::launcher::launcher;
-use lustre::lua_editor::register_all;
 use lustre::state::{create_state, initialize_state};
-use lustre::window::lustre_window;
 use mlua::Lua;
 
 fn main() {
-    //TODO: initialize_state
+    // Initialize state
     initialize_state("lustre.log", LevelFilter::Info).expect("Failed to initalize state");
-
     let state = create_state();
+    {
+        let mut state = state.lock().unwrap();
+        state.is_modified = true;
+    }
 
+    // Init and register Lua
     let lua = Lua::new();
-
     register_all(&lua, state.clone()).expect("failed to register Lua functions.");
 
-    launcher();
-    // lustre_window();
+    // Launch the launcher
+    launcher(state);
 }

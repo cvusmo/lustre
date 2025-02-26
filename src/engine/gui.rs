@@ -1,10 +1,10 @@
 // Copyright 2025 Nicholas Jordan. All Rights Reserved.
 // github.com/cvusmo/lustre
-// src/lib.rs
+// src/engine/gui.rs
 
-use crate::menu_bar::create_menu_bar;
+use crate::engine::ui::menu_bar::create_menu_bar;
+use crate::engine::ui::utils::{create_text_editor, load_project_area};
 use crate::state::{log_info, AppState};
-use crate::utils::{create_text_editor, load_project_area};
 
 use gtk::{prelude::*, Application, ApplicationWindow, DrawingArea, Grid, Label};
 use gtk4 as gtk;

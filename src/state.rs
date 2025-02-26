@@ -8,6 +8,7 @@ use gtk4::Box as GtkBox;
 use gtk4::{DrawingArea, TextView};
 use mlua::prelude::*;
 use once_cell::sync::OnceCell;
+use std::time::Instant;
 use std::{
     error::Error,
     fs::File,
@@ -29,6 +30,7 @@ pub struct AppState {
     pub text_view: Option<TextView>,
     pub lua: Arc<Mutex<Lua>>,
     pub is_modified: bool,
+    pub start_time: Instant,
 }
 
 impl Default for AppState {
@@ -42,6 +44,7 @@ impl Default for AppState {
             lua: Arc::new(Mutex::new(Lua::new())),
             is_modified: false,
             text_view: None,
+            start_time: Instant::now(),
         }
     }
 }

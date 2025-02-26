@@ -4,11 +4,11 @@
 // src/modules/engine/gui/menu_bar.rs
 // github.com/cvusmo/gameengine
 
-use crate::file_explorer::open_file;
-use crate::lua_editor::{create_lua_editor, run_lua_script};
-use crate::render::lustre_render;
-use crate::state::{log_error, log_info, AppState};
-use crate::utils::{handle_exit, load_project_area, save_as_file, save_file};
+use crate::engine::render::lustre_render;
+use crate::engine::ui::file_explorer::open_file;
+use crate::engine::ui::lua_editor::{create_lua_editor, run_lua_script};
+use crate::engine::ui::utils::{handle_exit, load_project_area, save_as_file, save_file};
+use crate::state::{log_info, AppState};
 use crate::window::lustre_window;
 
 use gtk4::prelude::*;
@@ -120,27 +120,20 @@ pub fn create_menu_bar(
         log_info("Project compiled.");
     });
 
-    // Render Project Button
-    let render_button = Button::with_label("Render");
-    project_box.append(&render_button);
-    render_button.connect_clicked({
+    // Play Project Button
+    let play_button = Button::with_label("Play");
+    project_box.append(&play_button);
+    play_button.connect_clicked({
         let state_clone = Arc::clone(state);
+        let app_clone = app.clone();
         move |_| {
-            // Retrieve the Vulkan instance and surface from AppState.
-            let (maybe_instance, maybe_surface) = {
-                let state_lock = state_clone.lock().unwrap();
-                (
-                    state_lock.vulkan_instance.clone(),
-                    state_lock.vulkan_surface.clone(),
-                )
-            };
-            if let (Some(instance), Some(surface)) = (maybe_instance, maybe_surface) {
-                lustre_render(instance.clone(), surface.clone());
-            } else {
-                log_error("Vulkan instance or surface not available.");
-            }
+            log_info("Launching game window and closing the launcher...");
 
-            lustre_window();
+            // Close the GTK launcher:
+            app_clone.quit();
+
+            // Now open the separate Vulkan window:
+            lustre_window(Arc::clone(&state_clone));
         }
     });
 
