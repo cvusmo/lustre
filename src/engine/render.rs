@@ -2,9 +2,10 @@
 // github.com/cvusmo/lustre
 // src/engine/render.rs
 
-use crate::engine::core::objects::get_cube_vertices;
+// use crate::engine::core::objects::get_cube_vertices; //, load_mesh};
+use crate::engine::core::voxel::generate_voxel_mesh;
 use crate::shaders::{fs, vs};
-use crate::state::{log_info, AppState};
+use crate::state::AppState;
 
 use image::{ImageBuffer, Rgba};
 use nalgebra::{Matrix4, Perspective3, Point3, Rotation3, Vector3};
@@ -215,6 +216,8 @@ fn get_command_buffers(
 
             let subpass_info = SubpassBeginInfo::default();
 
+            let index_count = vertex_buffer.len() as u32;
+
             let push_constants_data = PushConstants {
                 mvp: final_mvp,
                 model: final_model,
@@ -230,7 +233,7 @@ fn get_command_buffers(
                     .unwrap()
                     .bind_vertex_buffers(0, vertex_buffer.clone())
                     .unwrap()
-                    .draw(36, 1, 0, 0)
+                    .draw(index_count, 1, 0, 0)
                     .unwrap()
                     .end_render_pass(Default::default())
                     .unwrap();
@@ -248,7 +251,6 @@ pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>, state: Arc<
     };
 
     let (physical_device, _) = get_physical_device(&instance, &surface, &device_extensions);
-    log_info("Physical device is: {},");
 
     let queue_family_index = physical_device
         .queue_family_properties()
@@ -305,7 +307,7 @@ pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>, state: Arc<
             image_format: format,
             image_extent,
             image_usage: ImageUsage::COLOR_ATTACHMENT,
-            present_mode: PresentMode::Fifo,
+            present_mode: PresentMode::Immediate, // PresentMode::Mailbox, PresentMode::Fifo,
             ..Default::default()
         },
     )
@@ -315,12 +317,14 @@ pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>, state: Arc<
     let elapsed = Instant::now()
         .duration_since(state.lock().unwrap().start_time)
         .as_secs_f32();
-    let angle = elapsed * 60.0_f32.to_radians();
+    let angle = elapsed * 30.0_f32.to_radians();
 
     let aspect_ratio = 1025.0 / 1024.0;
     let proj = Perspective3::new(aspect_ratio, 60.0_f32.to_radians(), 0.1, 100.0);
+
+    // Camera
     let matrix_view = Matrix4::look_at_rh(
-        &Point3::new(3.0, 3.0, 3.0),
+        &Point3::new(5.0, 5.0, 5.0),
         &Point3::origin(),
         &Vector3::y(),
     );
@@ -330,7 +334,29 @@ pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>, state: Arc<
     let mvp = proj.to_homogeneous() * matrix_view * model;
     let mvp_final: [[f32; 4]; 4] = mvp.into();
 
-    let cube_vertices = get_cube_vertices();
+    let size = 3;
+    let mut voxel_grid = vec![vec![vec![false; size]; size]; size];
+    for z in 0..size {
+        for y in 0..size {
+            for x in 0..size {
+                // For testing, make the center voxel active.
+                voxel_grid[z][y][x] = true;
+            }
+        }
+    }
+
+    // Voxel Creation
+    let (vertices, indices) = generate_voxel_mesh(&voxel_grid);
+
+    //let vertices = get_cube_vertices();
+    //let vertices = load_mesh("assets/cube.glb").expect("Failed to load mesh");
+    //println!("Loaded {} vertices", vertices.len());
+    //for (i, v) in vertices.iter().take(5).enumerate() {
+    //println!(
+    //"Vertex {}: position={:?}, normal={:?}",
+    //i, v.position, v.normal
+    //);
+    //}
 
     let vertex_buffer = Buffer::from_iter(
         memory_allocator.clone(),
@@ -343,7 +369,23 @@ pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>, state: Arc<
                 | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
             ..Default::default()
         },
-        cube_vertices.into_iter(),
+        //cube_vertices.into_iter(),
+        vertices.into_iter(),
+    )
+    .unwrap();
+
+    let index_buffer = Buffer::from_iter(
+        memory_allocator.clone(),
+        BufferCreateInfo {
+            usage: BufferUsage::INDEX_BUFFER,
+            ..Default::default()
+        },
+        AllocationCreateInfo {
+            memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+                | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+            ..Default::default()
+        },
+        indices.into_iter(),
     )
     .unwrap();
 
@@ -402,6 +444,4 @@ pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>, state: Arc<
     let content = buf.read().unwrap();
     let image = ImageBuffer::<Rgba<u8>, _>::from_raw(1024, 1024, &content[..]).unwrap();
     image.save("image.png").unwrap();
-
-    println!("Engine test complete!");
 }

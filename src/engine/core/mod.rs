@@ -4,3 +4,4 @@
 
 pub mod controller;
 pub mod objects;
+pub mod voxel;

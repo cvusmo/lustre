@@ -4,10 +4,11 @@
 // src/modules/engine/gui/menu_bar.rs
 // github.com/cvusmo/gameengine
 
-use crate::engine::render::lustre_render;
+//use crate::engine::render::lustre_render;
 use crate::engine::ui::file_explorer::open_file;
 use crate::engine::ui::lua_editor::{create_lua_editor, run_lua_script};
 use crate::engine::ui::utils::{handle_exit, load_project_area, save_as_file, save_file};
+use crate::launcher::close_launcher;
 use crate::state::{log_info, AppState};
 use crate::window::lustre_window;
 
@@ -127,13 +128,8 @@ pub fn create_menu_bar(
         let state_clone = Arc::clone(state);
         let app_clone = app.clone();
         move |_| {
-            log_info("Launching game window and closing the launcher...");
-
-            // Close the GTK launcher:
-            app_clone.quit();
-
-            // Now open the separate Vulkan window:
-            lustre_window(Arc::clone(&state_clone));
+            log_info("Closing launcher and launching game window...");
+            close_launcher(&app_clone, Arc::clone(&state_clone));
         }
     });
 

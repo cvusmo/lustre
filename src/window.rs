@@ -3,6 +3,7 @@
 // src/window.rs
 
 use crate::engine::render::lustre_render;
+use crate::launcher::close_launcher;
 use crate::state::AppState;
 use std::sync::{Arc, Mutex};
 use vulkano::instance::{Instance, InstanceCreateFlags, InstanceCreateInfo};
@@ -75,7 +76,7 @@ impl ApplicationHandler for App {
 
 pub fn lustre_window(state: Arc<Mutex<AppState>>) {
     let event_loop = EventLoop::new().unwrap();
-    event_loop.set_control_flow(ControlFlow::Wait);
+    event_loop.set_control_flow(ControlFlow::Poll); //ControlFlow::Wait
     let mut app = App::default();
     app.state = Some(state);
     event_loop.run_app(&mut app);

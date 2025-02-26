@@ -21,6 +21,7 @@ fern = "0.7.1"
 gtk4 = "0.9.6"
 gdk4 = "0.9.6"
 glib = "0.20.9"
+gltf = "1.4.1"
 image = "0.25.5"
 log = "0.4.25"
 mlua = { version = "0.10.3", features = ["lua54"] }
