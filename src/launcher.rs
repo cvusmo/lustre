@@ -3,13 +3,13 @@
 // src/launcher.rs
 
 use crate::gui::build_ui;
-use crate::state::create_state;
+use crate::state::{create_state, log_info};
 use gtk4::prelude::*;
 use gtk4::Application;
 use std::sync::{Arc, Mutex};
 
 pub fn launcher() {
-    println!("Launching lustre...");
+    log_info("Launching lustre...");
 
     // Create GTK app
     let app = Application::builder()

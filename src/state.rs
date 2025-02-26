@@ -5,7 +5,7 @@
 use fern::Dispatch;
 use gtk4::prelude::*;
 use gtk4::Box as GtkBox;
-use gtk4::TextView;
+use gtk4::{DrawingArea, TextView};
 use mlua::prelude::*;
 use once_cell::sync::OnceCell;
 use std::{
@@ -14,6 +14,8 @@ use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
 };
+use vulkano::instance::Instance;
+use vulkano::swapchain::Surface;
 
 static STATE_INITIALIZED: OnceCell<bool> = OnceCell::new();
 
@@ -21,6 +23,9 @@ static STATE_INITIALIZED: OnceCell<bool> = OnceCell::new();
 pub struct AppState {
     pub project_path: Option<PathBuf>,
     pub project_area: Option<GtkBox>,
+    pub vulkan_area: Option<DrawingArea>,
+    pub vulkan_instance: Option<Arc<Instance>>,
+    pub vulkan_surface: Option<Arc<Surface>>,
     pub text_view: Option<TextView>,
     pub lua: Arc<Mutex<Lua>>,
     pub is_modified: bool,
@@ -31,6 +36,9 @@ impl Default for AppState {
         Self {
             project_path: None,
             project_area: None,
+            vulkan_area: None,
+            vulkan_instance: None,
+            vulkan_surface: None,
             lua: Arc::new(Mutex::new(Lua::new())),
             is_modified: false,
             text_view: None,

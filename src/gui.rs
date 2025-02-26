@@ -51,6 +51,11 @@ pub fn build_ui(app: &Application, state: &Arc<Mutex<AppState>>) -> Arc<Applicat
     vulkan_area.set_halign(gtk::Align::Fill);
     grid.attach(&vulkan_area, 1, 2, 1, 1); // Place it in a different row/column than project_area
 
+    {
+        let mut state_lock = state.lock().unwrap();
+        state_lock.vulkan_area = Some(vulkan_area.clone());
+    }
+
     // Add menu bar
     log_info("Creating menu bar...");
     let menu_bar = create_menu_bar(state, &window, app);
