@@ -7,7 +7,7 @@ use std::sync::Arc;
 #[warn(unused_imports)]
 use crate::shaders::fs;
 use crate::shaders::vs;
-// use crate::state::log_info;
+use crate::state::log_info;
 
 use image::{ImageBuffer, Rgba};
 use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer};
@@ -23,7 +23,7 @@ use vulkano::device::{
     Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo, QueueFlags,
 };
 use vulkano::image::view::ImageView;
-use vulkano::image::{Image, ImageCreateInfo, ImageType, ImageUsage};
+use vulkano::image::{Image, ImageUsage};
 use vulkano::instance::Instance;
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter, StandardMemoryAllocator};
 use vulkano::pipeline::graphics::color_blend::{ColorBlendAttachmentState, ColorBlendState};
@@ -226,6 +226,8 @@ pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>) {
 
     // Select a physical device.
     let (physical_device, _) = get_physical_device(&instance, &surface, &device_extensions);
+
+    log_info("Physical device is: {},");
 
     // Choose a graphics queue family.
     let queue_family_index = physical_device

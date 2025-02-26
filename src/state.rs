@@ -3,6 +3,9 @@
 // src/state.rs
 
 use fern::Dispatch;
+use gtk4::prelude::*;
+use gtk4::Box as GtkBox;
+use gtk4::TextView;
 use mlua::prelude::*;
 use once_cell::sync::OnceCell;
 use std::{
@@ -17,6 +20,8 @@ static STATE_INITIALIZED: OnceCell<bool> = OnceCell::new();
 /// Represents the application's state.
 pub struct AppState {
     pub project_path: Option<PathBuf>,
+    pub project_area: Option<GtkBox>,
+    pub text_view: Option<TextView>,
     pub lua: Arc<Mutex<Lua>>,
     pub is_modified: bool,
 }
@@ -25,8 +30,10 @@ impl Default for AppState {
     fn default() -> Self {
         Self {
             project_path: None,
+            project_area: None,
             lua: Arc::new(Mutex::new(Lua::new())),
             is_modified: false,
+            text_view: None,
         }
     }
 }
