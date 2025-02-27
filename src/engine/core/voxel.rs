@@ -22,7 +22,7 @@ pub fn generate_voxel_mesh(voxels: &Vec<Vec<Vec<bool>>>) -> (Vec<MainVertex>, Ve
         return (vertices, indices);
     }
 
-    // Helper function: add a face (quad) given 4 positions and a normal.
+    // add a face (quad) given 4 positions and a normal
     fn add_face(
         vertices: &mut Vec<MainVertex>,
         indices: &mut Vec<u32>,
@@ -119,4 +119,19 @@ pub fn generate_voxel_mesh(voxels: &Vec<Vec<Vec<bool>>>) -> (Vec<MainVertex>, Ve
     }
 
     (vertices, indices)
+}
+
+pub fn get_voxel_mesh(size: usize) -> (Vec<MainVertex>, Vec<u32>) {
+    let mut voxel_grid = vec![vec![vec![false; size]; size]; size];
+    let center = size / 2;
+    voxel_grid[center][center][center] = true;
+    generate_voxel_mesh(&voxel_grid)
+}
+
+pub fn get_64_voxel_mesh() -> (Vec<MainVertex>, Vec<u32>) {
+    let grid_width = 64;
+    let grid_height = 1;
+    let grid_depth = 64;
+    let voxel_grid = vec![vec![vec![false; grid_depth]; grid_height]; grid_width];
+    generate_voxel_mesh(&voxel_grid)
 }

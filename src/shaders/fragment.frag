@@ -5,9 +5,9 @@ layout(location = 1) in vec3 frag_normal;
 layout(location = 0) out vec4 out_color;
 
 void main() {
-    // For debugging, output the normalized vertex position as color
+
     out_color = vec4(normalize(frag_position) * 0.5 + 0.5, 1.0);
-    // Alternatively, output a constant color:
+
     // out_color = vec4(1.0, 0.0, 0.0, 1.0);
 }
 

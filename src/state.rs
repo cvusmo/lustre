@@ -3,7 +3,6 @@
 // src/state.rs
 
 use fern::Dispatch;
-use gtk4::prelude::*;
 use gtk4::Box as GtkBox;
 use gtk4::{DrawingArea, TextView};
 use mlua::prelude::*;
@@ -31,10 +30,20 @@ pub struct AppState {
     pub lua: Arc<Mutex<Lua>>,
     pub is_modified: bool,
     pub start_time: Instant,
+    pub voxel_grid: Vec<Vec<Vec<bool>>>,
 }
 
-impl Default for AppState {
-    fn default() -> Self {
+impl AppState {
+    // Create new AppState with initialized voxel grid
+    // TODO: World Generation
+    pub fn new() -> Self {
+        let grid_width = 64;
+        let grid_height = 1;
+        let grid_depth = 64;
+        let mut voxel_grid = vec![vec![vec![false; grid_depth]; grid_height]; grid_width];
+        // Init one voxel at (0, 0, 0) for testing
+        voxel_grid[0][0][0] = true;
+
         Self {
             project_path: None,
             project_area: None,
@@ -45,7 +54,26 @@ impl Default for AppState {
             is_modified: false,
             text_view: None,
             start_time: Instant::now(),
+            voxel_grid,
         }
+    }
+
+    pub fn toggle_voxel(&mut self, x: usize, y: usize, z: usize) -> bool {
+        if x < self.voxel_grid.len()
+            && y < self.voxel_grid[0].len()
+            && z < self.voxel_grid[0][0].len()
+        {
+            self.voxel_grid[x][y][z] = !self.voxel_grid[x][y][z];
+            self.is_modified = true;
+            return true;
+        }
+        false
+    }
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

@@ -10,7 +10,6 @@ use crate::engine::ui::lua_editor::{create_lua_editor, run_lua_script};
 use crate::engine::ui::utils::{handle_exit, load_project_area, save_as_file, save_file};
 use crate::launcher::close_launcher;
 use crate::state::{log_info, AppState};
-use crate::window::lustre_window;
 
 use gtk4::prelude::*;
 use gtk4::{

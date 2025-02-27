@@ -4,7 +4,6 @@
 
 use crate::engine::ui::utils::{create_text_editor, execute_lua_script};
 use crate::state::{log_error, log_info, AppState};
-use crate::window::lustre_window;
 use gtk4::prelude::*;
 use gtk4::ScrolledWindow;
 use mlua::prelude::*;

@@ -3,9 +3,9 @@
 // src/window.rs
 
 use crate::engine::render::lustre_render;
-use crate::launcher::close_launcher;
-use crate::state::AppState;
+use crate::state::{log_error, AppState};
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use vulkano::instance::{Instance, InstanceCreateFlags, InstanceCreateInfo};
 use vulkano::library::VulkanLibrary;
 use vulkano::swapchain::Surface;
@@ -53,6 +53,7 @@ impl ApplicationHandler for App {
         self.surface = Some(surface);
     }
 
+    // TODO: Add KeyboardInput && voxel destruction
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         match event {
             WindowEvent::CloseRequested => {
@@ -60,6 +61,7 @@ impl ApplicationHandler for App {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
+                let frame_start = Instant::now;
                 if let (Some(ref instance), Some(ref surface), Some(ref state)) =
                     (&self.instance, &self.surface, &self.state)
                 {
@@ -67,6 +69,12 @@ impl ApplicationHandler for App {
                 }
                 if let Some(ref window) = self.window {
                     window.request_redraw();
+                }
+                // Frame calculation
+                let target_frame_time = Duration::from_millis(120);
+                let elapsed = frame_start().elapsed();
+                if elapsed < target_frame_time {
+                    std::thread::sleep(target_frame_time - elapsed);
                 }
             }
             _ => (),
@@ -79,5 +87,7 @@ pub fn lustre_window(state: Arc<Mutex<AppState>>) {
     event_loop.set_control_flow(ControlFlow::Poll); //ControlFlow::Wait
     let mut app = App::default();
     app.state = Some(state);
-    event_loop.run_app(&mut app);
+    if let Err(_e) = event_loop.run_app(&mut app) {
+        log_error("Error running event loop");
+    }
 }

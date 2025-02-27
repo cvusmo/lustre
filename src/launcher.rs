@@ -14,30 +14,30 @@ pub fn launcher(state: Arc<Mutex<AppState>>) {
     log_info("Launching lustre...");
 
     // Create GTK app
-    let app = Application::builder()
+    let launcher_app = Application::builder()
         .application_id("org.cvusmo.lustre")
         .build();
 
     // Activate signal using the provided state
-    app.connect_activate(move |app| {
-        let window = build_ui(app, &state);
+    launcher_app.connect_activate(move |launcher_app| {
+        let window = build_ui(launcher_app, &state);
         window.present();
     });
 
     // Run the application
-    app.run();
+    launcher_app.run();
 }
 
-pub fn close_launcher(app: &gtk4::Application, state: Arc<Mutex<AppState>>) {
-    app.connect_shutdown(move |_| {
+pub fn close_launcher(launcher_app: &gtk4::Application, state: Arc<Mutex<AppState>>) {
+    launcher_app.connect_shutdown(move |_| {
         log_info("Launcher shutdown confirmed, launching game window...");
         lustre_window(Arc::clone(&state));
     });
     // Schedule the quit to be run on the main thread.
     MainContext::default().invoke_local({
-        let app = app.clone();
+        let launcher_app = launcher_app.clone();
         move || {
-            app.quit();
+            launcher_app.quit();
         }
     });
 }
