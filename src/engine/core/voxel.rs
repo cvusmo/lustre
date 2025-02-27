@@ -3,11 +3,12 @@
 // src/engine/core/voxel.rs
 
 use crate::engine::render::MainVertex;
+use rand::prelude::*;
 
-#[allow(dead_code)]
 pub fn generate_voxel_mesh(voxels: &Vec<Vec<Vec<bool>>>) -> (Vec<MainVertex>, Vec<u32>) {
     let mut vertices: Vec<MainVertex> = Vec::new();
     let mut indices: Vec<u32> = Vec::new();
+    let mut rng = rand::rng();
 
     let width = voxels.len();
     if width == 0 {
@@ -22,18 +23,19 @@ pub fn generate_voxel_mesh(voxels: &Vec<Vec<Vec<bool>>>) -> (Vec<MainVertex>, Ve
         return (vertices, indices);
     }
 
-    // add a face (quad) given 4 positions and a normal
     fn add_face(
         vertices: &mut Vec<MainVertex>,
         indices: &mut Vec<u32>,
         positions: [[f32; 3]; 4],
         normal: [f32; 3],
+        color: [f32; 3],
     ) {
         let start = vertices.len() as u32;
         for &pos in positions.iter() {
             vertices.push(MainVertex {
                 position: pos,
                 normal,
+                color,
             });
         }
         // Two triangles: 0, 1, 2 and 0, 2, 3
@@ -58,7 +60,13 @@ pub fn generate_voxel_mesh(voxels: &Vec<Vec<Vec<bool>>>) -> (Vec<MainVertex>, Ve
                     let p111 = [x_f + 1.0, y_f + 1.0, z_f + 1.0];
                     let p011 = [x_f, y_f + 1.0, z_f + 1.0];
 
-                    // For each face, check if the neighbor is empty or we're at a boundary
+                    // Random color per voxel
+                    let color = [
+                        rng.random_range(0.0..1.0),
+                        rng.random_range(0.0..1.0),
+                        rng.random_range(0.0..1.0),
+                    ];
+
                     // Front face: z+ direction
                     if z == depth - 1 || !voxels[x][y][z + 1] {
                         add_face(
@@ -66,6 +74,7 @@ pub fn generate_voxel_mesh(voxels: &Vec<Vec<Vec<bool>>>) -> (Vec<MainVertex>, Ve
                             &mut indices,
                             [p001, p101, p111, p011],
                             [0.0, 0.0, 1.0],
+                            color,
                         );
                     }
                     // Back face: z- direction
@@ -75,6 +84,7 @@ pub fn generate_voxel_mesh(voxels: &Vec<Vec<Vec<bool>>>) -> (Vec<MainVertex>, Ve
                             &mut indices,
                             [p100, p000, p010, p110],
                             [0.0, 0.0, -1.0],
+                            color,
                         );
                     }
                     // Right face: x+ direction
@@ -84,6 +94,7 @@ pub fn generate_voxel_mesh(voxels: &Vec<Vec<Vec<bool>>>) -> (Vec<MainVertex>, Ve
                             &mut indices,
                             [p101, p100, p110, p111],
                             [1.0, 0.0, 0.0],
+                            color,
                         );
                     }
                     // Left face: x- direction
@@ -93,6 +104,7 @@ pub fn generate_voxel_mesh(voxels: &Vec<Vec<Vec<bool>>>) -> (Vec<MainVertex>, Ve
                             &mut indices,
                             [p000, p001, p011, p010],
                             [-1.0, 0.0, 0.0],
+                            color,
                         );
                     }
                     // Top face: y+ direction
@@ -102,6 +114,7 @@ pub fn generate_voxel_mesh(voxels: &Vec<Vec<Vec<bool>>>) -> (Vec<MainVertex>, Ve
                             &mut indices,
                             [p010, p011, p111, p110],
                             [0.0, 1.0, 0.0],
+                            color,
                         );
                     }
                     // Bottom face: y- direction
@@ -111,6 +124,7 @@ pub fn generate_voxel_mesh(voxels: &Vec<Vec<Vec<bool>>>) -> (Vec<MainVertex>, Ve
                             &mut indices,
                             [p001, p000, p100, p101],
                             [0.0, -1.0, 0.0],
+                            color,
                         );
                     }
                 }

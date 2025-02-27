@@ -53,6 +53,8 @@ pub struct MainVertex {
     pub position: [f32; 3],
     #[format(R32G32B32_SFLOAT)]
     pub normal: [f32; 3],
+    #[format(R32G32B32_SFLOAT)]
+    pub color: [f32; 3],
 }
 
 #[repr(C)]
@@ -310,8 +312,8 @@ pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>, state: Arc<
     // Camera
     // TODO: Get camera control
     let matrix_view = Matrix4::look_at_rh(
-        &Point3::new(3.0, 3.0, 3.0),
-        &Point3::origin(),
+        &Point3::new(96.0, 96.0, 96.0),
+        &Point3::new(32.0, 32.0, 32.0),
         &Vector3::y(),
     );
 
@@ -329,11 +331,6 @@ pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>, state: Arc<
     let state_guard = state.lock().unwrap();
     let (vertices, indices) = generate_voxel_mesh(&state_guard.voxel_grid);
     println!("Vertices: {}, Indices: {}", vertices.len(), indices.len());
-
-    // TODO: Get multiple passes of voxel mesh generation
-
-    // Hardcoded vertices
-    //let vertices = get_cube_vertices();
 
     // Load vertices from a mesh
     //let vertices = load_mesh("assets/cube.glb").expect("Failed to load mesh");
@@ -377,6 +374,7 @@ pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>, state: Arc<
             vec![MainVertex {
                 position: [0.0, 0.0, 0.0],
                 normal: [0.0, 0.0, 0.0],
+                color: [0.0, 0.0, 0.0],
             }]
             .into_iter(),
         )
@@ -455,7 +453,7 @@ pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>, state: Arc<
         push_constants,
     );
 
-    let command_buffer = command_buffers[0].clone();
+    let command_buffer = command_buffers[image_index as usize].clone();
 
     let future = acquire_future
         .then_execute(queue.clone(), command_buffer)

@@ -7,6 +7,7 @@ use gtk4::Box as GtkBox;
 use gtk4::{DrawingArea, TextView};
 use mlua::prelude::*;
 use once_cell::sync::OnceCell;
+use rand::prelude::*;
 use std::time::Instant;
 use std::{
     error::Error,
@@ -35,14 +36,25 @@ pub struct AppState {
 
 impl AppState {
     // Create new AppState with initialized voxel grid
-    // TODO: World Generation
+    // TODO: Single Chunk Generation (64x64x64)
     pub fn new() -> Self {
         let grid_width = 64;
-        let grid_height = 1;
+        let grid_height = 64;
         let grid_depth = 64;
         let mut voxel_grid = vec![vec![vec![false; grid_depth]; grid_height]; grid_width];
-        // Init one voxel at (0, 0, 0) for testing
-        voxel_grid[0][0][0] = true;
+        let mut rng = rand::rng();
+
+        // Sparse fill a 64x64x64 subset with random placement
+        for x in 0..grid_width {
+            for y in 0..grid_height {
+                for z in 0..grid_depth {
+                    if rng.random_bool(0.2) {
+                        // 1% chance
+                        voxel_grid[x][y][z] = true;
+                    }
+                }
+            }
+        }
 
         Self {
             project_path: None,
