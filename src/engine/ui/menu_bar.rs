@@ -12,13 +12,15 @@ use gtk4::{
     Align, Application, ApplicationWindow, Box as GtkBox, Button, Label, MenuButton, Orientation,
     Popover, TextView,
 };
+use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 
 pub fn create_menu_bar(
     state: &Arc<Mutex<AppState>>,
-    parent: &Arc<ApplicationWindow>,
+    parent: &ApplicationWindow,
     app: &Application,
     project_area: &GtkBox,
+    tx: Sender<()>,
 ) -> (GtkBox, TextView) {
     log_info("Creating menu bar...");
 
@@ -36,7 +38,7 @@ pub fn create_menu_bar(
     let state_clone = Arc::clone(state);
     let project_area_clone = project_area.clone();
     new_button.connect_clicked({
-        let content = String::from(""); // Define content here for closure
+        let content = String::from("");
         move |_| {
             log_info("Creating New Project...");
             load_project_area(
@@ -51,13 +53,13 @@ pub fn create_menu_bar(
     let open_button = Button::with_label("Open");
     file_box.append(&open_button);
     let state_clone_open = Arc::clone(state);
-    let parent_clone_open = Arc::clone(parent);
+    let parent_clone_open = parent.clone(); // Updated to clone ApplicationWindow instead of Arc
     let project_area_clone_open = project_area.clone();
     open_button.connect_clicked(move |_| {
         log_info("Open file button clicked.");
         open_file(
             state_clone_open.clone(),
-            parent_clone_open.as_ref(),
+            &parent_clone_open, // Updated to pass ApplicationWindow directly
             &project_area_clone_open,
         );
     });
@@ -65,7 +67,7 @@ pub fn create_menu_bar(
     let save_button = Button::with_label("Save");
     file_box.append(&save_button);
     let state_clone_save = Arc::clone(state);
-    let text_view_save = load_project_area(state, "", project_area, create_lua_editor); // Initial load
+    let text_view_save = load_project_area(state, "", project_area, create_lua_editor);
     save_button.connect_clicked({
         let state_clone_save = Arc::clone(&state_clone_save);
         let text_view_save = text_view_save.clone();
@@ -79,18 +81,18 @@ pub fn create_menu_bar(
     let save_as_button = Button::with_label("Save As");
     file_box.append(&save_as_button);
     let state_clone_save_as = Arc::clone(state);
-    let parent_clone_save_as = Arc::clone(parent);
+    let parent_clone_save_as = parent.clone();
     let text_view_save_as = text_view_save.clone();
     save_as_button.connect_clicked({
         let state_clone_save_as = Arc::clone(&state_clone_save_as);
-        let parent_clone_save_as = parent_clone_save_as.clone();
+        let parent_clone_save_as = parent.clone();
         let text_view_save_as = text_view_save_as.clone();
         move |_| {
             log_info("Save As button clicked.");
             save_as_file(
                 &text_view_save_as,
                 state_clone_save_as.clone(),
-                parent_clone_save_as.clone(),
+                &parent_clone_save_as,
             );
             log_info("Save As operation finished.");
         }
@@ -140,11 +142,12 @@ pub fn create_menu_bar(
 
     let play_button = Button::with_label("Play");
     project_box.append(&play_button);
-    let state_clone_play = Arc::clone(state);
     let app_clone_play = app.clone();
+    let _state_clone_play = Arc::clone(state);
+    let tx_play = tx.clone();
     play_button.connect_clicked(move |_| {
         log_info("Play button clicked, closing launcher...");
-        close_launcher(app_clone_play.clone(), state_clone_play.clone());
+        close_launcher(app_clone_play.clone(), tx_play.clone());
     });
 
     project_popover.set_child(Some(&project_box));
@@ -154,10 +157,10 @@ pub fn create_menu_bar(
     menu_bar.append(&edit_button);
     menu_bar.append(&project_button);
 
-    let content = String::from(""); // Define content separately here
+    let content = String::from("");
     let text_view = load_project_area(state, &content, project_area, create_lua_editor);
 
     log_info("Menu bar created successfully.");
     (menu_bar, text_view)
-} 
-  
+}
+

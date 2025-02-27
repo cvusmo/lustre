@@ -97,13 +97,13 @@ pub fn save_file(text_view: &TextView, state: &Arc<Mutex<AppState>>) {
 pub fn save_as_file(
     text_view: &TextView,
     state: Arc<Mutex<AppState>>,
-    parent: Arc<ApplicationWindow>,
+    parent: &ApplicationWindow, // Changed from Arc<ApplicationWindow> to &ApplicationWindow
 ) {
     log_info("Saving project as a new file...");
 
     let dialog = FileChooserDialog::builder()
         .title("Save File As")
-        .transient_for(parent.as_ref())
+        .transient_for(parent) // Updated to use &ApplicationWindow
         .action(FileChooserAction::Save)
         .modal(true)
         .build();

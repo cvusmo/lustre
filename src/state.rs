@@ -15,6 +15,8 @@ use std::{
 use vulkano::instance::Instance;
 use vulkano::swapchain::Surface;
 
+// Global flag to enable/disable debug logs (optional for production)
+static ENABLE_DEBUG: bool = cfg!(debug_assertions); // Enable in debug builds, disable in release
 static STATE_INITIALIZED: OnceCell<bool> = OnceCell::new();
 
 pub struct AppState {
@@ -38,7 +40,6 @@ impl AppState {
             for y in 0..grid_height {
                 for z in 0..grid_depth {
                     if rng.random_bool(0.01) {
-                        // Fixed from gen_bool
                         voxel_grid[x][y][z] = true;
                     }
                 }
@@ -108,12 +109,21 @@ pub fn create_state() -> Arc<Mutex<AppState>> {
     Arc::new(Mutex::new(AppState::default()))
 }
 
+// Improved logging functions with dynamic formatting and conditional debug
 pub fn log_info(message: &str) {
     log::info!("{}", message);
 }
 
-pub fn log_debug(message: &str) {
-    log::debug!("{}", message);
+pub fn log_debug(args: std::fmt::Arguments<'_>) {
+    if ENABLE_DEBUG {
+        log::debug!("{}", args);
+    }
+}
+
+pub fn log_debug_fmt<F: Fn() -> String>(message: F) {
+    if ENABLE_DEBUG {
+        log::debug!("{}", message());
+    }
 }
 
 pub fn log_warn(message: &str) {
@@ -122,5 +132,5 @@ pub fn log_warn(message: &str) {
 
 pub fn log_error(message: &str) {
     log::error!("{}", message);
-}
-
+} 
+    
