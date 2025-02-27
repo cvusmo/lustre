@@ -2,67 +2,154 @@
 // github.com/cvusmo/lustre
 // src/engine/core/objects.rs
 
-use crate::engine::render::MainVertex;
-use gltf::import;
-use rand::prelude::*;
-use std::fs::File;
-use std::io::Read;
+use crate::engine::render::ObjectVertex;
 
-pub fn load_mesh(path: &str) -> Result<(Vec<MainVertex>, Vec<u32>), Box<dyn std::error::Error>> {
-    let mut file = File::open(path)?;
-    let mut data = Vec::new();
-    file.read_to_end(&mut data)?;
+pub fn load_mesh(_path: &str) -> Result<(Vec<ObjectVertex>, Vec<u32>), Box<dyn std::error::Error>> {
+    let vertices = vec![
+        // Front face
+        ObjectVertex {
+            position: [-0.5, -0.5, 0.5],
+            normal: [0.0, 0.0, 1.0],
+            tex_coord: [0.0, 0.0],
+        },
+        ObjectVertex {
+            position: [0.5, -0.5, 0.5],
+            normal: [0.0, 0.0, 1.0],
+            tex_coord: [1.0, 0.0],
+        },
+        ObjectVertex {
+            position: [0.5, 0.5, 0.5],
+            normal: [0.0, 0.0, 1.0],
+            tex_coord: [1.0, 1.0],
+        },
+        ObjectVertex {
+            position: [-0.5, 0.5, 0.5],
+            normal: [0.0, 0.0, 1.0],
+            tex_coord: [0.0, 1.0],
+        },
+        // Back face
+        ObjectVertex {
+            position: [-0.5, -0.5, -0.5],
+            normal: [0.0, 0.0, -1.0],
+            tex_coord: [0.0, 0.0],
+        },
+        ObjectVertex {
+            position: [0.5, -0.5, -0.5],
+            normal: [0.0, 0.0, -1.0],
+            tex_coord: [1.0, 0.0],
+        },
+        ObjectVertex {
+            position: [0.5, 0.5, -0.5],
+            normal: [0.0, 0.0, -1.0],
+            tex_coord: [1.0, 1.0],
+        },
+        ObjectVertex {
+            position: [-0.5, 0.5, -0.5],
+            normal: [0.0, 0.0, -1.0],
+            tex_coord: [0.0, 1.0],
+        },
+        // Left face
+        ObjectVertex {
+            position: [-0.5, -0.5, -0.5],
+            normal: [-1.0, 0.0, 0.0],
+            tex_coord: [0.0, 0.0],
+        },
+        ObjectVertex {
+            position: [-0.5, -0.5, 0.5],
+            normal: [-1.0, 0.0, 0.0],
+            tex_coord: [1.0, 0.0],
+        },
+        ObjectVertex {
+            position: [-0.5, 0.5, 0.5],
+            normal: [-1.0, 0.0, 0.0],
+            tex_coord: [1.0, 1.0],
+        },
+        ObjectVertex {
+            position: [-0.5, 0.5, -0.5],
+            normal: [-1.0, 0.0, 0.0],
+            tex_coord: [0.0, 1.0],
+        },
+        // Right face
+        ObjectVertex {
+            position: [0.5, -0.5, 0.5],
+            normal: [1.0, 0.0, 0.0],
+            tex_coord: [0.0, 0.0],
+        },
+        ObjectVertex {
+            position: [0.5, -0.5, -0.5],
+            normal: [1.0, 0.0, 0.0],
+            tex_coord: [1.0, 0.0],
+        },
+        ObjectVertex {
+            position: [0.5, 0.5, -0.5],
+            normal: [1.0, 0.0, 0.0],
+            tex_coord: [1.0, 1.0],
+        },
+        ObjectVertex {
+            position: [0.5, 0.5, 0.5],
+            normal: [1.0, 0.0, 0.0],
+            tex_coord: [0.0, 1.0],
+        },
+        // Top face
+        ObjectVertex {
+            position: [-0.5, 0.5, 0.5],
+            normal: [0.0, 1.0, 0.0],
+            tex_coord: [0.0, 0.0],
+        },
+        ObjectVertex {
+            position: [0.5, 0.5, 0.5],
+            normal: [0.0, 1.0, 0.0],
+            tex_coord: [1.0, 0.0],
+        },
+        ObjectVertex {
+            position: [0.5, 0.5, -0.5],
+            normal: [0.0, 1.0, 0.0],
+            tex_coord: [1.0, 1.0],
+        },
+        ObjectVertex {
+            position: [-0.5, 0.5, -0.5],
+            normal: [0.0, 1.0, 0.0],
+            tex_coord: [0.0, 1.0],
+        },
+        // Bottom face
+        ObjectVertex {
+            position: [-0.5, -0.5, -0.5],
+            normal: [0.0, -1.0, 0.0],
+            tex_coord: [0.0, 0.0],
+        },
+        ObjectVertex {
+            position: [0.5, -0.5, -0.5],
+            normal: [0.0, -1.0, 0.0],
+            tex_coord: [1.0, 0.0],
+        },
+        ObjectVertex {
+            position: [0.5, -0.5, 0.5],
+            normal: [0.0, -1.0, 0.0],
+            tex_coord: [1.0, 1.0],
+        },
+        ObjectVertex {
+            position: [-0.5, -0.5, 0.5],
+            normal: [0.0, -1.0, 0.0],
+            tex_coord: [0.0, 1.0],
+        },
+    ];
 
-    let (document, buffers, _) = import(path)?;
-
-    let mesh = document.meshes().next().ok_or("No mesh found")?;
-    let primitive = mesh.primitives().next().ok_or("No primitive found")?;
-
-    let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
-
-    let positions: Vec<[f32; 3]> = reader
-        .read_positions()
-        .ok_or("No positions found")?
-        .collect();
-
-    let normals: Vec<[f32; 3]> = if let Some(iter) = reader.read_normals() {
-        iter.collect()
-    } else {
-        vec![[0.0, 0.0, 1.0]; positions.len()]
-    };
-
-    let colors: Vec<[f32; 3]> = if let Some(color_iter) = reader.read_colors(0) {
-        color_iter.into_rgb_f32().collect()
-    } else {
-        let mut rng = rand::rng();
-        (0..positions.len())
-            .map(|_| {
-                [
-                    rng.random_range(0.0..1.0),
-                    rng.random_range(0.0..1.0),
-                    rng.random_range(0.0..1.0),
-                ]
-            })
-            .collect()
-    };
-
-    let indices: Vec<u32> = if let Some(index_iter) = reader.read_indices() {
-        index_iter.into_u32().collect()
-    } else {
-        (0..positions.len() as u32).collect() // Fallback: assumes triangles or points
-    };
-
-    let vertices: Vec<MainVertex> = positions
-        .into_iter()
-        .zip(normals.into_iter())
-        .zip(colors.into_iter())
-        .map(|((position, normal), color)| MainVertex {
-            position,
-            normal,
-            color,
-        })
-        .collect();
+    let indices = vec![
+        0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11, 12, 13, 14, 12, 14, 15, 16, 17,
+        18, 16, 18, 19, 20, 21, 22, 20, 22, 23,
+    ];
 
     Ok((vertices, indices))
 }
 
+// Future implementation notes:
+// - Replace this placeholder with actual .glb loading using the gltf crate
+// - Steps:
+//   1. Load .glb file with gltf::import
+//   2. Extract vertices (positions, normals, optionally colors) from the first mesh/primitive
+//   3. For the player model: Convert the mesh into a voxel representation
+//      - Define a bounding box around the model
+//      - Sample the mesh within a voxel grid (e.g., raycasting or point sampling)
+//      - Store the voxel data in a Vec<Vec<Vec<bool>>> or similar structure
+//   4. Generate MainVertex data from the voxelized model with random or mesh-derived colors
+//   5. Return vertices and indices compatible with the rendering pipeline

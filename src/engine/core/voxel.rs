@@ -50,7 +50,7 @@ pub fn generate_voxel_mesh(voxels: &Vec<Vec<Vec<bool>>>) -> (Vec<MainVertex>, Ve
                     let x_f = x as f32;
                     let y_f = y as f32;
                     let z_f = z as f32;
-                    // Define the 8 corners of the current voxel (assume each voxel is 1.0 unit cube)
+
                     let p000 = [x_f, y_f, z_f];
                     let p100 = [x_f + 1.0, y_f, z_f];
                     let p110 = [x_f + 1.0, y_f + 1.0, z_f];

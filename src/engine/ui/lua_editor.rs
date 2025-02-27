@@ -1,18 +1,18 @@
 // Copyright 2025 Nicholas Jordan. All Rights Reserved.
 // github.com/cvusmo/lustre
-//src/lua_editor.rs
+// src/engine/ui/lua_editor.rs
 
-use crate::engine::ui::utils::{create_text_editor, execute_lua_script};
+use crate::engine::ui::utils::create_text_editor;
 use crate::state::{log_error, log_info, AppState};
 use gtk4::prelude::*;
-use gtk4::ScrolledWindow;
+use gtk4::{ScrolledWindow, TextView};
 use mlua::prelude::*;
 use std::fs;
 use std::sync::{Arc, Mutex};
 
-/// Registers basic Lua functions (e.g. print_message) with the provided Lua context.
-pub fn register_lua_functions(lua: &Lua, _state: Arc<Mutex<AppState>>) -> LuaResult<()> {
-    let print_message = lua.create_function(move |_, message: String| {
+// Registers basic Lua functions (e.g., print_message)
+fn register_lua_functions(lua: &Lua) -> LuaResult<()> {
+    let print_message = lua.create_function(|_, message: String| {
         log_info(&message);
         Ok(())
     })?;
@@ -20,7 +20,7 @@ pub fn register_lua_functions(lua: &Lua, _state: Arc<Mutex<AppState>>) -> LuaRes
     Ok(())
 }
 
-/// Registers the Vulkan render function so that Lua can trigger it.
+// Registers Vulkan render trigger function
 fn register_render_functions(lua: &Lua) -> LuaResult<()> {
     let launch_fn = lua.create_function(|_, ()| {
         launch_vulkan_render();
@@ -30,88 +30,84 @@ fn register_render_functions(lua: &Lua) -> LuaResult<()> {
     Ok(())
 }
 
-/// Combined registration function that calls both register_lua_functions and register_render_functions.
-pub fn register_all(lua: &Lua, state: Arc<Mutex<AppState>>) -> LuaResult<()> {
-    // Register basic functions.
-    register_lua_functions(lua, state.clone())?;
-    // Register the Vulkan render trigger.
+// Registers all Lua functions (basic and render)
+pub fn register_all(lua: &Lua) -> LuaResult<()> {
+    register_lua_functions(lua)?;
     register_render_functions(lua)?;
     Ok(())
 }
 
-/// Loads additional Lua modules from the "./mods" directory.
-pub fn load_mods(lua: &Lua, _state: &Arc<Mutex<AppState>>) {
+// Loads Lua scripts from the "./mods" directory
+pub fn load_mods(lua: &Lua) {
     let mod_path = "./mods";
-    if let Ok(paths) = fs::read_dir(mod_path) {
-        for entry in paths.flatten() {
-            let script_path = entry.path();
-            if script_path.extension().and_then(|s| s.to_str()) == Some("lua") {
-                if let Ok(script_content) = fs::read_to_string(&script_path) {
-                    if let Err(e) = lua.load(&script_content).exec() {
-                        log_error(&format!(
-                            "Failed to load Lua script {:?}: {}",
+    match fs::read_dir(mod_path) {
+        Ok(paths) => {
+            for entry in paths.flatten() {
+                let script_path = entry.path();
+                if script_path.extension().and_then(|s| s.to_str()) == Some("lua") {
+                    match fs::read_to_string(&script_path) {
+                        Ok(script_content) => {
+                            if let Err(e) = lua.load(&script_content).exec() {
+                                log_error(&format!(
+                                    "Failed to load Lua script {:?}: {}",
+                                    script_path, e
+                                ));
+                            }
+                        }
+                        Err(e) => log_error(&format!(
+                            "Failed to read Lua script {:?}: {}",
                             script_path, e
-                        ));
+                        )),
                     }
                 }
             }
         }
-    } else {
-        log_error("Failed to read mods directory.");
+        Err(_) => log_error("Failed to read mods directory"),
     }
 }
 
-/// Creates a Lua editor widget.
-pub fn create_lua_editor(content: &str, state: &Arc<Mutex<AppState>>) -> ScrolledWindow {
-    create_text_editor(content, state)
+// Creates a Lua editor widget
+pub fn create_lua_editor(content: &str) -> (TextView, ScrolledWindow) {
+    create_text_editor(content)
 }
 
-/// Runs a Lua script that is currently in the editor.
-pub fn run_lua_from_editor(state: &Arc<Mutex<AppState>>) {
-    let script_content = {
-        // Lock state, read text view, then drop lock.
-        let state_lock = state.lock().unwrap();
-        if let Some(ref text_view) = state_lock.text_view {
-            let buffer = text_view.buffer();
-            let start = buffer.start_iter();
-            let end = buffer.end_iter();
-            buffer.text(&start, &end, true).to_string()
-        } else {
-            log_error("No text view found in current project.");
-            return;
-        }
-    };
-
-    // Execute the Lua script.
-    execute_lua_script(state, &script_content);
+// Executes a Lua script
+pub fn execute_lua_script(script_content: &str) {
+    let lua = Lua::new();
+    match lua.load(script_content).exec() {
+        Ok(_) => log_info("Lua script executed successfully"),
+        Err(err) => log_error(&format!("Failed to execute Lua script: {:?}", err)),
+    }
 }
 
-/// Runs a Lua script from a file specified in the AppState.
+// Runs the Lua script from the current editor content
+pub fn run_lua_from_editor(text_view: &TextView) {
+    let buffer = text_view.buffer();
+    let start = buffer.start_iter();
+    let end = buffer.end_iter();
+    let script_content = buffer.text(&start, &end, true).to_string();
+    execute_lua_script(&script_content);
+}
+
+// Runs a Lua script from the file specified in AppState
 pub fn run_lua_script(state: &Arc<Mutex<AppState>>) {
-    log_info("Running lua script...");
-
-    let script_path = {
-        let state_lock = state.lock().unwrap();
-        if let Some(ref path) = state_lock.project_path {
-            path.clone()
-        } else {
-            log_error("No project file is open. Please open or create a new project.");
-            return;
+    log_info("Running Lua script...");
+    let state_lock = state.lock().unwrap();
+    if let Some(script_path) = &state_lock.project_path {
+        match fs::read_to_string(script_path) {
+            Ok(script_content) => {
+                drop(state_lock);
+                execute_lua_script(&script_content);
+            }
+            Err(err) => log_error(&format!("Failed to read Lua script from file: {}", err)),
         }
-    };
-
-    let script_content = match fs::read_to_string(&script_path) {
-        Ok(content) => content,
-        Err(err) => {
-            log_error(&format!("Failed to read lua script from file: {}", err));
-            return;
-        }
-    };
-
-    execute_lua_script(state, &script_content);
+    } else {
+        log_error("No project file open. Please open or create a new project");
+    }
 }
 
-/// Launches the Vulkan render window.
-pub fn launch_vulkan_render() {
-    // lustre_window(state);
+// Placeholder for launching the Vulkan render window
+fn launch_vulkan_render() {
+    log_info("Vulkan render launch placeholder called");
 }
+

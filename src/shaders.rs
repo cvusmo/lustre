@@ -30,6 +30,20 @@ pub mod fs {
     }
 }
 
+pub mod object_vs {
+    vulkano_shaders::shader! {
+        ty: "vertex",
+        path: "src/shaders/object_vs.vert",
+    }
+}
+
+pub mod object_fs {
+    vulkano_shaders::shader! {
+        ty: "fragment",
+        path: "src/shaders/object_fs.frag",
+    }
+}
+
 pub mod image {
     vulkano_shaders::shader! {
         ty: "compute",

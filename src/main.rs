@@ -2,25 +2,27 @@
 // github.com/cvusmo/lustre
 // src/main.rs
 
-use log::LevelFilter;
-use lustre::engine::ui::lua_editor::register_all;
-use lustre::launcher::launcher;
-use lustre::state::{create_state, initialize_state};
-use mlua::Lua;
+use crate::launcher::launcher;
+use crate::state::{create_state, initialize_state};
+use crate::window::lustre_window;
+use std::sync::{Arc, Mutex};
+
+mod engine;
+mod launcher;
+mod shaders;
+mod state;
+mod window;
 
 fn main() {
-    // Initialize state
-    initialize_state("lustre.log", LevelFilter::Info).expect("Failed to initalize state");
+    let log_file_path = "lustre.log";
+    let log_level = log::LevelFilter::Info;
+
+    initialize_state(log_file_path, log_level).expect("Failed to initialize logger");
     let state = create_state();
-    {
-        let mut state = state.lock().unwrap();
-        state.is_modified = true;
+
+    // Run the launcher; if it returns true, launch the game
+    if launcher(state.clone()) {
+        lustre_window(state);
     }
-
-    // Init and register Lua
-    let lua = Lua::new();
-    register_all(&lua, state.clone()).expect("failed to register Lua functions.");
-
-    // Launch the launcher
-    launcher(state);
 }
+

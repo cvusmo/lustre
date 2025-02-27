@@ -2,9 +2,8 @@
 // github.com/cvusmo/lustre
 // src/engine/render.rs
 
-// use crate::engine::core::objects::{get_cube_vertices, load_mesh};
 use crate::engine::core::voxel::generate_voxel_mesh;
-use crate::shaders::{fs, vs};
+use crate::shaders::{fs, object_fs, object_vs, vs};
 use crate::state::AppState;
 
 use nalgebra::{Matrix4, Perspective3, Point3, Rotation3, Vector3};
@@ -45,7 +44,6 @@ use vulkano::swapchain::{
 };
 use vulkano::sync::GpuFuture;
 
-// Vertex and PushConstants definitions
 #[derive(BufferContents, Vertex, Clone, Copy)]
 #[repr(C)]
 pub struct MainVertex {
@@ -57,6 +55,17 @@ pub struct MainVertex {
     pub color: [f32; 3],
 }
 
+#[derive(BufferContents, Vertex, Clone, Copy)]
+#[repr(C)]
+pub struct ObjectVertex {
+    #[format(R32G32B32_SFLOAT)]
+    pub position: [f32; 3],
+    #[format(R32G32B32_SFLOAT)]
+    pub normal: [f32; 3],
+    #[format(R32G32_SFLOAT)]
+    pub tex_coord: [f32; 2],
+}
+
 #[repr(C)]
 #[derive(BufferContents, Clone, Copy)]
 struct PushConstants {
@@ -64,7 +73,6 @@ struct PushConstants {
     model: [[f32; 4]; 4],
 }
 
-// Device, RenderPass, and Framebuffer creation functions
 pub fn get_physical_device(
     instance: &Arc<Instance>,
     surface: &Arc<Surface>,
@@ -133,8 +141,7 @@ fn get_framebuffers(
         .collect::<Vec<_>>()
 }
 
-// Pipeline creation with push constants support
-fn get_graphic_pipeline(
+fn get_terrain_pipeline(
     device: Arc<Device>,
     vs: Arc<ShaderModule>,
     fs: Arc<ShaderModule>,
@@ -151,7 +158,6 @@ fn get_graphic_pipeline(
         PipelineShaderStageCreateInfo::new(fs_entry),
     ];
 
-    // Define the push constant range using the associated constant for vertex stage
     let push_constant_range = PushConstantRange {
         stages: ShaderStages::VERTEX,
         offset: 0,
@@ -164,7 +170,7 @@ fn get_graphic_pipeline(
     };
 
     let layout = PipelineLayout::new(device.clone(), pipeline_layout_create_info)
-        .expect("failed to create pipeline layout");
+        .expect("failed to create terrain pipeline layout");
 
     let subpass = Subpass::from(render_pass.clone(), 0).unwrap();
 
@@ -192,14 +198,73 @@ fn get_graphic_pipeline(
     .unwrap()
 }
 
-// Command buffer recording:
+fn get_object_pipeline(
+    device: Arc<Device>,
+    vs: Arc<ShaderModule>,
+    fs: Arc<ShaderModule>,
+    render_pass: Arc<RenderPass>,
+    viewport: Viewport,
+) -> Arc<GraphicsPipeline> {
+    let vs_entry = vs.entry_point("main").unwrap();
+    let fs_entry = fs.entry_point("main").unwrap();
+
+    let vertex_input_state = ObjectVertex::per_vertex().definition(&vs_entry).unwrap();
+
+    let stages = [
+        PipelineShaderStageCreateInfo::new(vs_entry),
+        PipelineShaderStageCreateInfo::new(fs_entry),
+    ];
+
+    let push_constant_range = PushConstantRange {
+        stages: ShaderStages::VERTEX,
+        offset: 0,
+        size: std::mem::size_of::<PushConstants>() as u32,
+    };
+
+    let pipeline_layout_create_info = PipelineLayoutCreateInfo {
+        push_constant_ranges: vec![push_constant_range],
+        ..Default::default()
+    };
+
+    let layout = PipelineLayout::new(device.clone(), pipeline_layout_create_info)
+        .expect("failed to create object pipeline layout");
+
+    let subpass = Subpass::from(render_pass.clone(), 0).unwrap();
+
+    GraphicsPipeline::new(
+        device.clone(),
+        None,
+        GraphicsPipelineCreateInfo {
+            stages: stages.into_iter().collect(),
+            vertex_input_state: Some(vertex_input_state),
+            input_assembly_state: Some(InputAssemblyState::default()),
+            viewport_state: Some(ViewportState {
+                viewports: [viewport].into_iter().collect(),
+                ..Default::default()
+            }),
+            rasterization_state: Some(RasterizationState::default()),
+            multisample_state: Some(MultisampleState::default()),
+            color_blend_state: Some(ColorBlendState::with_attachment_states(
+                subpass.num_color_attachments(),
+                ColorBlendAttachmentState::default(),
+            )),
+            subpass: Some(subpass.into()),
+            ..GraphicsPipelineCreateInfo::layout(layout)
+        },
+    )
+    .unwrap()
+}
+
 fn get_command_buffers(
     command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
     queue: &Arc<Queue>,
-    graphic_pipeline: Arc<GraphicsPipeline>,
+    terrain_pipeline: Arc<GraphicsPipeline>,
+    object_pipeline: Arc<GraphicsPipeline>,
     framebuffers: &[Arc<Framebuffer>],
-    vertex_buffer: &Subbuffer<[MainVertex]>,
-    index_buffer: &Subbuffer<[u32]>,
+    terrain_vertex_buffer: &Subbuffer<[MainVertex]>,
+    terrain_index_buffer: &Subbuffer<[u32]>,
+    object_vertex_buffer: &Subbuffer<[ObjectVertex]>,
+    object_index_buffer: &Subbuffer<[u32]>,
     push_constants: PushConstants,
 ) -> Vec<Arc<PrimaryAutoCommandBuffer>> {
     framebuffers
@@ -216,25 +281,42 @@ fn get_command_buffers(
             render_pass_info.clear_values = vec![Some([0.2, 0.2, 0.2, 1.0].into())];
 
             let subpass_info = SubpassBeginInfo::default();
-            let index_count = index_buffer.size() as u32 / std::mem::size_of::<u32>() as u32;
+
+            let terrain_index_count =
+                terrain_index_buffer.size() as u32 / std::mem::size_of::<u32>() as u32;
+            let object_index_count =
+                object_index_buffer.size() as u32 / std::mem::size_of::<u32>() as u32;
 
             unsafe {
                 builder
                     .begin_render_pass(render_pass_info, subpass_info)
                     .unwrap();
 
-                if index_count > 1 {
-                    // Only draw if we have real geometry
+                if terrain_index_count > 1 {
                     builder
-                        .bind_pipeline_graphics(graphic_pipeline.clone())
-                        .expect("failed to bind graphics pipeline")
-                        .push_constants(graphic_pipeline.layout().clone(), 0, push_constants)
+                        .bind_pipeline_graphics(terrain_pipeline.clone())
+                        .expect("failed to bind terrain pipeline")
+                        .push_constants(terrain_pipeline.layout().clone(), 0, push_constants)
                         .unwrap()
-                        .bind_vertex_buffers(0, vertex_buffer.clone())
+                        .bind_vertex_buffers(0, terrain_vertex_buffer.clone())
                         .unwrap()
-                        .bind_index_buffer(index_buffer.clone())
+                        .bind_index_buffer(terrain_index_buffer.clone())
                         .unwrap()
-                        .draw_indexed(index_count, 1, 0, 0, 0)
+                        .draw_indexed(terrain_index_count, 1, 0, 0, 0)
+                        .unwrap();
+                }
+
+                if object_index_count > 1 {
+                    builder
+                        .bind_pipeline_graphics(object_pipeline.clone())
+                        .expect("failed to bind object pipeline")
+                        .push_constants(object_pipeline.layout().clone(), 0, push_constants)
+                        .unwrap()
+                        .bind_vertex_buffers(0, object_vertex_buffer.clone())
+                        .unwrap()
+                        .bind_index_buffer(object_index_buffer.clone())
+                        .unwrap()
+                        .draw_indexed(object_index_count, 1, 0, 0, 0)
                         .unwrap();
                 }
 
@@ -245,7 +327,6 @@ fn get_command_buffers(
         .collect::<Vec<_>>()
 }
 
-// Main render function
 pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>, state: Arc<Mutex<AppState>>) {
     let device_extensions = DeviceExtensions {
         khr_swapchain: true,
@@ -294,23 +375,27 @@ pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>, state: Arc<
             image_format: format,
             image_extent,
             image_usage: ImageUsage::COLOR_ATTACHMENT,
-            present_mode: PresentMode::Immediate, // PresentMode::Mailbox, PresentMode::Fifo,
+            present_mode: PresentMode::Immediate,
             ..Default::default()
         },
     )
     .expect("failed to create swapchain");
 
-    // Compute MVP matrix
+    let render_pass = get_render_pass(device.clone(), swapchain.clone());
+    let framebuffers = get_framebuffers(&swapchain_images, render_pass.clone());
+
+    let (image_index, _suboptimal, acquire_future) =
+        vulkano::swapchain::acquire_next_image(swapchain.clone(), None)
+            .expect("failed to acquire next image");
+
     let elapsed = Instant::now()
         .duration_since(state.lock().unwrap().start_time)
         .as_secs_f32();
     let angle = elapsed * 45.0_f32.to_radians();
 
     let aspect_ratio = image_extent[0] as f32 / image_extent[1] as f32;
-    let proj = Perspective3::new(aspect_ratio, 75.0_f32.to_radians(), 0.1, 100.0);
+    let proj = Perspective3::new(aspect_ratio, 75.0_f32.to_radians(), 0.1, 1000.0);
 
-    // Camera
-    // TODO: Get camera control
     let matrix_view = Matrix4::look_at_rh(
         &Point3::new(96.0, 96.0, 96.0),
         &Point3::new(32.0, 32.0, 32.0),
@@ -327,23 +412,15 @@ pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>, state: Arc<
         model: final_model,
     };
 
-    // Voxel Generation (basic 1 pass)
     let state_guard = state.lock().unwrap();
-    let (vertices, indices) = generate_voxel_mesh(&state_guard.voxel_grid);
-    println!("Vertices: {}, Indices: {}", vertices.len(), indices.len());
-
-    // Load vertices from a mesh
-    //let vertices = load_mesh("assets/cube.glb").expect("Failed to load mesh");
-    //println!("Loaded {} vertices", vertices.len());
-    //for (i, v) in vertices.iter().take(5).enumerate() {
+    let (terrain_vertices, terrain_indices) = generate_voxel_mesh(&state_guard.voxel_grid);
     //println!(
-    //"Vertex {}: position={:?}, normal={:?}",
-    //i, v.position, v.normal
+    //"Terrain Vertices: {}, Indices: {}",
+    //terrain_vertices.len(),
+    //terrain_indices.len()
     //);
-    //}
 
-    // Create buffers, use placeholders if empty
-    let vertex_buffer = if !vertices.is_empty() {
+    let terrain_vertex_buffer = if !terrain_vertices.is_empty() {
         Buffer::from_iter(
             memory_allocator.clone(),
             BufferCreateInfo {
@@ -355,11 +432,10 @@ pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>, state: Arc<
                     | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
                 ..Default::default()
             },
-            vertices.into_iter(),
+            terrain_vertices.into_iter(),
         )
-        .expect("Failed to create vertex buffer")
+        .expect("Failed to create terrain vertex buffer")
     } else {
-        // Placeholder buffer with one degenerate vertex
         Buffer::from_iter(
             memory_allocator.clone(),
             BufferCreateInfo {
@@ -378,10 +454,10 @@ pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>, state: Arc<
             }]
             .into_iter(),
         )
-        .expect("Failed to create placeholder vertex buffer")
+        .expect("Failed to create placeholder terrain vertex buffer")
     };
 
-    let index_buffer = if !indices.is_empty() {
+    let terrain_index_buffer = if !terrain_indices.is_empty() {
         Buffer::from_iter(
             memory_allocator.clone(),
             BufferCreateInfo {
@@ -393,11 +469,10 @@ pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>, state: Arc<
                     | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
                 ..Default::default()
             },
-            indices.into_iter(),
+            terrain_indices.into_iter(),
         )
-        .expect("Failed to create index buffer")
+        .expect("Failed to create terrain index buffer")
     } else {
-        // Placeholder buffer with one degenerate index
         Buffer::from_iter(
             memory_allocator.clone(),
             BufferCreateInfo {
@@ -411,15 +486,47 @@ pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>, state: Arc<
             },
             vec![0].into_iter(),
         )
-        .expect("Failed to create placeholder index buffer")
+        .expect("Failed to create placeholder terrain index buffer")
     };
 
-    let (image_index, _suboptimal, acquire_future) =
-        vulkano::swapchain::acquire_next_image(swapchain.clone(), None)
-            .expect("failed to acquire next image.");
+    let (object_vertices, object_indices) =
+        crate::engine::core::objects::load_mesh("placeholder.glb")
+            .expect("Failed to load object mesh");
+    //println!(
+    //"Object Vertices: {}, Indices: {}",
+    //object_vertices.len(),
+    //object_indices.len()
+    //);
 
-    let render_pass = get_render_pass(device.clone(), swapchain.clone());
-    let framebuffers = get_framebuffers(&swapchain_images, render_pass.clone());
+    let object_vertex_buffer = Buffer::from_iter(
+        memory_allocator.clone(),
+        BufferCreateInfo {
+            usage: BufferUsage::VERTEX_BUFFER,
+            ..Default::default()
+        },
+        AllocationCreateInfo {
+            memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+                | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+            ..Default::default()
+        },
+        object_vertices.into_iter(),
+    )
+    .expect("Failed to create object vertex buffer");
+
+    let object_index_buffer = Buffer::from_iter(
+        memory_allocator.clone(),
+        BufferCreateInfo {
+            usage: BufferUsage::INDEX_BUFFER,
+            ..Default::default()
+        },
+        AllocationCreateInfo {
+            memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+                | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+            ..Default::default()
+        },
+        object_indices.into_iter(),
+    )
+    .expect("Failed to create object index buffer");
 
     let viewport = Viewport {
         offset: [0.0, 0.0],
@@ -427,13 +534,26 @@ pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>, state: Arc<
         depth_range: 0.0..=1.0,
     };
 
-    let vs_module = vs::load(device.clone()).expect("failed to load vertex shader.");
-    let fs_module = fs::load(device.clone()).expect("failed to load fragment shader.");
+    let terrain_vs_module = vs::load(device.clone()).expect("failed to load terrain vertex shader");
+    let terrain_fs_module =
+        fs::load(device.clone()).expect("failed to load terrain fragment shader");
+    let object_vs_module =
+        object_vs::load(device.clone()).expect("failed to load object vertex shader");
+    let object_fs_module =
+        object_fs::load(device.clone()).expect("failed to load object fragment shader");
 
-    let graphic_pipeline = get_graphic_pipeline(
+    let terrain_pipeline = get_terrain_pipeline(
         device.clone(),
-        vs_module,
-        fs_module,
+        terrain_vs_module,
+        terrain_fs_module,
+        render_pass.clone(),
+        viewport.clone(),
+    );
+
+    let object_pipeline = get_object_pipeline(
+        device.clone(),
+        object_vs_module,
+        object_fs_module,
         render_pass.clone(),
         viewport,
     );
@@ -446,10 +566,13 @@ pub fn lustre_render(instance: Arc<Instance>, surface: Arc<Surface>, state: Arc<
     let command_buffers = get_command_buffers(
         command_buffer_allocator,
         &queue,
-        graphic_pipeline.clone(),
+        terrain_pipeline,
+        object_pipeline,
         &framebuffers,
-        &vertex_buffer,
-        &index_buffer,
+        &terrain_vertex_buffer,
+        &terrain_index_buffer,
+        &object_vertex_buffer,
+        &object_index_buffer,
         push_constants,
     );
 

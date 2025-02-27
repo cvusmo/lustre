@@ -3,9 +3,6 @@
 // src/state.rs
 
 use fern::Dispatch;
-use gtk4::Box as GtkBox;
-use gtk4::{DrawingArea, TextView};
-use mlua::prelude::*;
 use once_cell::sync::OnceCell;
 use rand::prelude::*;
 use std::time::Instant;
@@ -20,23 +17,16 @@ use vulkano::swapchain::Surface;
 
 static STATE_INITIALIZED: OnceCell<bool> = OnceCell::new();
 
-/// Represents the application's state.
 pub struct AppState {
     pub project_path: Option<PathBuf>,
-    pub project_area: Option<GtkBox>,
-    pub vulkan_area: Option<DrawingArea>,
     pub vulkan_instance: Option<Arc<Instance>>,
     pub vulkan_surface: Option<Arc<Surface>>,
-    pub text_view: Option<TextView>,
-    pub lua: Arc<Mutex<Lua>>,
     pub is_modified: bool,
     pub start_time: Instant,
     pub voxel_grid: Vec<Vec<Vec<bool>>>,
 }
 
 impl AppState {
-    // Create new AppState with initialized voxel grid
-    // TODO: Single Chunk Generation (64x64x64)
     pub fn new() -> Self {
         let grid_width = 64;
         let grid_height = 64;
@@ -44,12 +34,11 @@ impl AppState {
         let mut voxel_grid = vec![vec![vec![false; grid_depth]; grid_height]; grid_width];
         let mut rng = rand::rng();
 
-        // Sparse fill a 64x64x64 subset with random placement
         for x in 0..grid_width {
             for y in 0..grid_height {
                 for z in 0..grid_depth {
-                    if rng.random_bool(0.2) {
-                        // 1% chance
+                    if rng.random_bool(0.01) {
+                        // Fixed from gen_bool
                         voxel_grid[x][y][z] = true;
                     }
                 }
@@ -58,13 +47,9 @@ impl AppState {
 
         Self {
             project_path: None,
-            project_area: None,
-            vulkan_area: None,
             vulkan_instance: None,
             vulkan_surface: None,
-            lua: Arc::new(Mutex::new(Lua::new())),
             is_modified: false,
-            text_view: None,
             start_time: Instant::now(),
             voxel_grid,
         }
@@ -89,7 +74,6 @@ impl Default for AppState {
     }
 }
 
-/// Initializes the application state along with logging.
 pub fn initialize_state(
     log_file_path: &str,
     log_level: log::LevelFilter,
@@ -116,32 +100,27 @@ pub fn initialize_state(
         .apply()?;
 
     println!("Logger successfully initialized...");
-
     STATE_INITIALIZED.set(true).unwrap();
     Ok(())
 }
 
-/// Creates the initial application state.
 pub fn create_state() -> Arc<Mutex<AppState>> {
     Arc::new(Mutex::new(AppState::default()))
 }
 
-/// Logs an informational message.
 pub fn log_info(message: &str) {
     log::info!("{}", message);
 }
 
-/// Logs a debug message.
 pub fn log_debug(message: &str) {
     log::debug!("{}", message);
 }
 
-/// Logs a warning message.
 pub fn log_warn(message: &str) {
     log::warn!("{}", message);
 }
 
-/// Logs an error message.
 pub fn log_error(message: &str) {
     log::error!("{}", message);
 }
+
